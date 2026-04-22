@@ -148,7 +148,7 @@ const serializeInvoice = inv => {
 
 const S = {
   app:  { fontFamily:"'DM Sans',sans-serif", background:"#0a0c12", minHeight:"100vh", display:"flex", justifyContent:"center" },
-  wrap: { width:"100%", maxWidth:430, minHeight:"100vh", background:"#0a0c12", position:"relative", paddingBottom:76 },
+  wrap: { width:"100%", maxWidth:430, minHeight:"100vh", background:"#0a0c12", position:"relative", paddingBottom:88 },
   hdr:  { padding:"52px 20px 20px", background:"linear-gradient(160deg,#111525 0%,#0a0c12 100%)" },
   eye:  { fontSize:10, fontWeight:700, color:"#f0b429", letterSpacing:"0.18em", marginBottom:6 },
   ttl:  { fontSize:26, fontWeight:700, color:"#fff", letterSpacing:"-0.02em" },
@@ -169,12 +169,12 @@ const S = {
 function NavIcon({ id, active }) {
   const c = active ? "#f0b429" : "#3a3f55";
   const icons = {
-    home:    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
-    create:  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
-    tracker: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
-    history: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
-    settings:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
-    contractors:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
+    home:    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+    create:  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
+    tracker: <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+    history: <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+    settings:<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
+    contractors:<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
   };
   return icons[id]||null;
 }
@@ -198,9 +198,9 @@ function BottomNav({ screen, setScreen }) {
       {tabs.map(t=>{
         const active = screen===t.scr||(t.id==="create"&&inCreate);
         return (
-          <button key={t.id} onClick={()=>setScreen(t.scr)} style={{flex:1,padding:"13px 0 10px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+          <button key={t.id} onClick={()=>setScreen(t.scr)} style={{flex:1,padding:"18px 0 14px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
             <NavIcon id={t.id} active={active}/>
-            <span style={{fontSize:9,fontWeight:700,color:active?"#f0b429":"#3a3f55",letterSpacing:"0.05em"}}>{t.label.toUpperCase()}</span>
+            <span style={{fontSize:10,fontWeight:700,color:active?"#f0b429":"#3a3f55",letterSpacing:"0.05em"}}>{t.label.toUpperCase()}</span>
           </button>
         );
       })}
@@ -852,11 +852,12 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
 
 // ─── TRACKER SCREEN ───────────────────────────────────────────────────────────
 
-function TrackerScreen({builders,invoices,setScreen,tBld,setTBld,onDuplicate,onViewInvoice,onMarkPaid}) {
+function TrackerScreen({builders,invoices,setScreen,tBld,setTBld,onDuplicate,onViewInvoice,onMarkPaid,onDeleteInvoice}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
   const isDesktop = w >= 1024;
   const [confirmPay,setConfirmPay]=useState(null);
+  const [confirmDelete,setConfirmDelete]=useState(null);
   const displayed=tBld?invoices.filter(i=>i.builder===tBld):invoices;
   const activeB=tBld?builders.find(b=>b.id===tBld):null;
 
@@ -865,6 +866,13 @@ function TrackerScreen({builders,invoices,setScreen,tBld,setTBld,onDuplicate,onV
     if(!inv)return;
     await onMarkPaid(inv);
     setConfirmPay(null);
+  };
+
+  const doDelete=async id=>{
+    const inv=invoices.find(i=>i.id===id);
+    if(!inv)return;
+    await onDeleteInvoice(inv);
+    setConfirmDelete(null);
   };
 
   return (
@@ -876,6 +884,16 @@ function TrackerScreen({builders,invoices,setScreen,tBld,setTBld,onDuplicate,onV
           confirmLabel="Mark Paid"
           onConfirm={()=>doMarkPaid(confirmPay.id)}
           onCancel={()=>setConfirmPay(null)}
+        />
+      )}
+      {confirmDelete&&(
+        <ConfirmModal
+          title="Delete Invoice?"
+          message={`Delete invoice ${confirmDelete.invoiceNum}? This cannot be undone.`}
+          confirmLabel="Delete"
+          danger={true}
+          onConfirm={()=>doDelete(confirmDelete.id)}
+          onCancel={()=>setConfirmDelete(null)}
         />
       )}
       <div style={S.hdr}>
@@ -919,10 +937,11 @@ function TrackerScreen({builders,invoices,setScreen,tBld,setTBld,onDuplicate,onV
                   </div>
                   <div style={{fontSize:17,fontWeight:800,color:"#f0b429"}}>{fmt(inv.amount)}</div>
                 </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6}}>
                   <button onClick={()=>onViewInvoice(inv)} style={{padding:"7px",background:"#1c2035",border:"none",color:"#9ca3bc",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>View</button>
                   <button onClick={()=>onDuplicate(inv)} style={{padding:"7px",background:"#f0b42918",border:"1px solid #f0b42930",color:"#f0b429",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>Duplicate</button>
                   <button onClick={()=>setConfirmPay(inv)} style={{padding:"7px",background:"#10b98118",border:"1px solid #10b98144",color:"#10b981",borderRadius:8,fontSize:11,fontWeight:700,cursor:"pointer"}}>Mark Paid ✓</button>
+                  <button onClick={()=>setConfirmDelete(inv)} style={{padding:"7px",background:"#ef444418",border:"1px solid #ef444430",color:"#ef4444",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>Delete</button>
                 </div>
               </div>
             </div>
@@ -1931,6 +1950,15 @@ export default function App() {
     await deleteDoc(doc(db,"invoices",String(inv.id)));
   };
 
+  const deleteInvoice = async (inv) => {
+    const builderId = inv.builder;
+    const prevNum = builderNums[builderId] ?? 0;
+    const newNum = Math.max(0, prevNum - 1);
+    await deleteDoc(doc(db,"invoices",String(inv.id)));
+    setBuilderNums(prev => ({...prev,[builderId]:newNum}));
+    await updateDoc(doc(db,"builders",builderId), {lastNum:newNum});
+  };
+
   const addWorkerFn = async (worker) => {
     setWorkers(prev=>[...prev,worker]);
     await setDoc(doc(db,"workers",worker.id), worker);
@@ -2017,7 +2045,7 @@ export default function App() {
   const screens={
     home:        <HomeScreen builders={builders} invoices={invoices} paid={paid} setScreen={setScreen} setTBld={setTBld}/>,
     c1:          <CreateScreen builders={builders} setScreen={setScreen} builderNums={builderNums} floorPlans={floorPlans} prices={prices} toast={showToast} duplicateFrom={duplicateFrom} onInvoiceCreated={createInvoice} onSendInvoice={sendInvoice}/>,
-    tracker:     <TrackerScreen builders={builders} invoices={invoices} setScreen={setScreen} tBld={tBld} setTBld={setTBld} onDuplicate={handleDuplicate} onViewInvoice={handleViewInvoice} onMarkPaid={markPaid}/>,
+    tracker:     <TrackerScreen builders={builders} invoices={invoices} setScreen={setScreen} tBld={tBld} setTBld={setTBld} onDuplicate={handleDuplicate} onViewInvoice={handleViewInvoice} onMarkPaid={markPaid} onDeleteInvoice={deleteInvoice}/>,
     history:     <HistoryScreen builders={builders} invoices={invoices} paid={paid} onResend={handleResend}/>,
     contractors: <ContractorsScreen workers={workers} payments={payments} onAddWorker={addWorkerFn} onUpdateWorker={updateWorkerFn} onRemoveWorker={removeWorkerFn} onAddPayment={addPaymentFn} onDeletePayment={deletePaymentFn}/>,
     settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices}/>,
