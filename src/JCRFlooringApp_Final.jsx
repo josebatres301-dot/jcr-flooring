@@ -1,14 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
-
-function useWindowWidth() {
-  const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 430);
-  useEffect(() => {
-    const h = () => setW(window.innerWidth);
-    window.addEventListener("resize", h);
-    return () => window.removeEventListener("resize", h);
-  }, []);
-  return w;
-}
+import { useState, useMemo } from "react";
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
@@ -168,9 +158,6 @@ function NavIcon({ id, active }) {
 }
 
 function BottomNav({ screen, setScreen }) {
-  const _w = useWindowWidth();
-  const _isTablet = _w >= 768;
-  const _isDesktop = _w >= 1024;
   const tabs = [
     {id:"home",        scr:"home",         label:"Home"},
     {id:"create",      scr:"c1",           label:"Invoice"},
@@ -181,7 +168,7 @@ function BottomNav({ screen, setScreen }) {
   ];
   const inCreate = ["c1","c2","c3","preview"].includes(screen);
   return (
-    <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:_isDesktop?900:_isTablet?"100%":430,background:"#0e1118",borderTop:"1px solid #1c2035",display:"flex",zIndex:100}}>
+    <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:430,background:"#0e1118",borderTop:"1px solid #1c2035",display:"flex",zIndex:100}}>
       {tabs.map(t=>{
         const active = screen===t.scr||(t.id==="create"&&inCreate);
         return (
@@ -359,8 +346,6 @@ function ConfirmModal({title,message,onConfirm,onCancel,confirmLabel="Confirm",d
 // ─── HOME SCREEN ─────────────────────────────────────────────────────────────
 
 function HomeScreen({builders,invoices,paid,setScreen,setTBld}) {
-  const w = useWindowWidth();
-  const isTablet = w >= 768;
   const grand = invoices.reduce((s,i)=>s+i.amount,0);
   const now = new Date();
   const thisMonth = `${now.getMonth()+1}/${now.getFullYear()}`;
@@ -390,13 +375,12 @@ function HomeScreen({builders,invoices,paid,setScreen,setTBld}) {
       </div>
       <div style={{padding:"0 16px"}}>
         <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12}}>BUILDERS</div>
-        <div style={{display:"grid",gridTemplateColumns:isTablet?"1fr 1fr":"1fr",gap:10}}>
         {builders.map(b=>{
           const total=invoices.filter(i=>i.builder===b.id).reduce((s,i)=>s+i.amount,0);
           const cnt=invoices.filter(i=>i.builder===b.id).length;
           const overdue=invoices.filter(i=>i.builder===b.id&&ageDays(i.date)>14).length;
           return (
-            <div key={b.id} style={{...S.card,marginBottom:0,cursor:"pointer"}} onClick={()=>{setTBld(b.id);setScreen("tracker");}}>
+            <div key={b.id} style={{...S.card,cursor:"pointer"}} onClick={()=>{setTBld(b.id);setScreen("tracker");}}>
               <div style={{...S.cp,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                 <div style={{display:"flex",alignItems:"center",gap:12}}>
                   <div style={{width:40,height:40,borderRadius:10,background:b.color+"18",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -415,7 +399,6 @@ function HomeScreen({builders,invoices,paid,setScreen,setTBld}) {
             </div>
           );
         })}
-        </div>
       </div>
     </div>
   );
@@ -795,8 +778,6 @@ function CreateScreen({builders,setInvoices,setScreen,builderNums,setBuilderNums
 // ─── TRACKER SCREEN ───────────────────────────────────────────────────────────
 
 function TrackerScreen({builders,invoices,setInvoices,setPaid,setScreen,tBld,setTBld,onDuplicate,onViewInvoice}) {
-  const w = useWindowWidth();
-  const isTablet = w >= 768;
   const [confirmPay,setConfirmPay]=useState(null);
   const displayed=tBld?invoices.filter(i=>i.builder===tBld):invoices;
   const activeB=tBld?builders.find(b=>b.id===tBld):null;
@@ -841,13 +822,12 @@ function TrackerScreen({builders,invoices,setInvoices,setPaid,setScreen,tBld,set
 
       <div style={{padding:"0 16px"}}>
         {displayed.length===0&&<div style={{textAlign:"center",padding:"48px 0",color:"#4a5170",fontSize:14}}>No outstanding invoices</div>}
-        <div style={{display:"grid",gridTemplateColumns:isTablet?"1fr 1fr":"1fr",gap:10}}>
         {displayed.map(inv=>{
           const b=builders.find(b=>b.id===inv.builder);
           const days=ageDays(inv.date);
           const overdue=days>14;
           return (
-            <div key={inv.id} style={{...S.card,marginBottom:0,border:`1px solid ${overdue?"#ef444330":"#1c2035"}`}}>
+            <div key={inv.id} style={{...S.card,border:`1px solid ${overdue?"#ef444330":"#1c2035"}`}}>
               <div style={S.cp}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                   <div>
@@ -870,7 +850,6 @@ function TrackerScreen({builders,invoices,setInvoices,setPaid,setScreen,tBld,set
             </div>
           );
         })}
-        </div>
       </div>
     </div>
   );
@@ -879,9 +858,6 @@ function TrackerScreen({builders,invoices,setInvoices,setPaid,setScreen,tBld,set
 // ─── FINANCE SCREEN ──────────────────────────────────────────────────────────
 
 function HistoryScreen({builders, invoices, paid, onResend}) {
-  const w = useWindowWidth();
-  const isTablet = w >= 768;
-  const isDesktop = w >= 1024;
   const [tab, setTab] = useState("overview");
   const [selMonth, setSelMonth] = useState(null);
 
@@ -972,7 +948,7 @@ function HistoryScreen({builders, invoices, paid, onResend}) {
         {tab==="overview" && (
           <>
             {/* KPI cards */}
-            <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr 1fr 1fr":"1fr 1fr",gap:10,marginBottom:14}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
               <div style={{background:"#10b98115",borderRadius:12,padding:"14px",border:"1px solid #10b98130"}}>
                 <div style={{fontSize:9,fontWeight:700,color:"#10b981",letterSpacing:"0.12em",marginBottom:4}}>YEAR TO DATE</div>
                 <div style={{fontSize:20,fontWeight:800,color:"#10b981"}}>{fmt(ytd)}</div>
@@ -1115,9 +1091,8 @@ function HistoryScreen({builders, invoices, paid, onResend}) {
             ) : (
               <>
                 <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12}}>{currentYear} — ALL MONTHS</div>
-                <div style={{display:"grid",gridTemplateColumns:isTablet?"1fr 1fr":"1fr",gap:10}}>
                 {monthlyData.filter(m=>m.total>0).map(m=>(
-                  <div key={m.month} style={{...S.card,marginBottom:0,cursor:"pointer"}} onClick={()=>setSelMonth(m.month)}>
+                  <div key={m.month} style={{...S.card,cursor:"pointer"}} onClick={()=>setSelMonth(m.month)}>
                     <div style={{...S.cp,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <div>
                         <div style={{fontSize:15,fontWeight:700,color:"#e8eaf0"}}>{m.label} {currentYear}</div>
@@ -1136,7 +1111,6 @@ function HistoryScreen({builders, invoices, paid, onResend}) {
                     </div>
                   </div>
                 ))}
-                </div>
                 {monthlyData.filter(m=>m.total===0).length>0&&(
                   <div style={{fontSize:11,color:"#2a2f45",textAlign:"center",padding:"8px 0"}}>
                     {monthlyData.filter(m=>m.total===0).map(m=>m.label).join(", ")} — no invoices paid
@@ -1151,9 +1125,8 @@ function HistoryScreen({builders, invoices, paid, onResend}) {
         {tab==="builders" && (
           <>
             <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12}}>RANKED BY REVENUE — {currentYear}</div>
-            <div style={{display:"grid",gridTemplateColumns:isTablet?"1fr 1fr":"1fr",gap:10}}>
             {builderBreakdown.map((b,i)=>(
-              <div key={b.id} style={{...S.card,marginBottom:0}}><div style={S.cp}>
+              <div key={b.id} style={S.card}><div style={S.cp}>
                 <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
                   <div style={{fontSize:16,fontWeight:800,color:"#2a2f45",width:20}}>#{i+1}</div>
                   <div style={{width:38,height:38,borderRadius:10,background:b.color+"18",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -1185,7 +1158,6 @@ function HistoryScreen({builders, invoices, paid, onResend}) {
                 </div>
               </div></div>
             ))}
-            </div>
             {builderBreakdown.length===0&&<div style={{textAlign:"center",padding:"32px 0",color:"#4a5170",fontSize:13}}>No paid invoices this year yet</div>}
           </>
         )}
@@ -1495,50 +1467,9 @@ function ContractorsScreen() {
   );
 }
 
-
-function BuilderForm({isEdit, selBId, builders, setBuilders, setBuilderNums, setFloorPlans, setView, S}) {
-  const eb = isEdit ? builders.find(b=>b.id===selBId) : null;
-  const [fd, setFd] = useState(isEdit && eb ? {...eb} : {name:"",company:"",email:"",prefix:"",startNum:"1"});
-  const colorIdx = builders.length % BUILDER_COLORS.length;
-  const save = () => {
-    if(!fd.name||!fd.company||!fd.prefix) return;
-    if(isEdit) {
-      setBuilders(prev=>prev.map(b=>b.id===selBId?{...b,...fd}:b));
-      setView("builderDetail");
-    } else {
-      const id = fd.name.toLowerCase().replace(/[^a-z0-9]/g,"_")+Date.now();
-      const newB = {id,name:fd.name,company:fd.company,email:fd.email,prefix:fd.prefix.toUpperCase(),lastNum:parseInt(fd.startNum||1)-1,color:BUILDER_COLORS[colorIdx]};
-      setBuilders(prev=>[...prev,newB]);
-      setBuilderNums(prev=>({...prev,[id]:parseInt(fd.startNum||1)-1}));
-      setFloorPlans(prev=>({...prev,[id]:[]}));
-      setView("main");
-    }
-  };
-  return (
-    <div style={{paddingBottom:16}}>
-      <div style={S.hdr}><button style={S.btnBk} onClick={()=>setView(isEdit?"builderDetail":"main")}>← Back</button><div style={S.eye}>SETTINGS</div><div style={S.ttl}>{isEdit?"Edit Builder":"Add Builder"}</div></div>
-      <div style={{padding:"0 16px",display:"flex",flexDirection:"column",gap:12}}>
-        <div style={S.card}><div style={S.cp}><div style={S.lbl}>BUILDER NAME</div><input value={fd.name||""} onChange={e=>setFd(p=>({...p,name:e.target.value}))} placeholder="e.g. Bryan" style={S.inp}/></div></div>
-        <div style={S.card}><div style={S.cp}><div style={S.lbl}>COMPANY NAME (Bill To)</div><input value={fd.company||""} onChange={e=>setFd(p=>({...p,company:e.target.value}))} placeholder="e.g. Bryan Lagaly" style={S.inp}/></div></div>
-        <div style={S.card}><div style={S.cp}><div style={S.lbl}>EMAIL</div><input value={fd.email||""} onChange={e=>setFd(p=>({...p,email:e.target.value}))} placeholder="e.g. billing@example.com" style={S.inp}/></div></div>
-        <div style={S.card}><div style={S.cp}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <div><div style={S.lbl}>PREFIX</div><input value={fd.prefix||""} onChange={e=>setFd(p=>({...p,prefix:e.target.value.toUpperCase()}))} placeholder="e.g. BL" style={S.inp}/></div>
-            {!isEdit&&<div><div style={S.lbl}>START INVOICE #</div><input type="number" value={fd.startNum||"1"} onChange={e=>setFd(p=>({...p,startNum:e.target.value}))} placeholder="1" style={S.inp}/></div>}
-          </div>
-        </div></div>
-        {!isEdit&&fd.prefix&&<div style={{...S.card,border:"1px solid #1c2035"}}><div style={S.cp}><div style={{fontSize:11,color:"#4a5170",marginBottom:4}}>First invoice will be:</div><div style={{fontSize:18,fontWeight:700,color:"#f0b429",fontFamily:"monospace"}}>{fd.prefix}{String(parseInt(fd.startNum||1)).padStart(3,"0")}</div></div></div>}
-        <button onClick={save} style={{...S.btnP,opacity:(fd.name&&fd.company&&fd.prefix)?1:0.35}}>{isEdit?"Save Changes":"Add Builder"}</button>
-      </div>
-    </div>
-  );
-}
-
 // ─── SETTINGS SCREEN ──────────────────────────────────────────────────────────
 
 function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNums,setBuilderNums,prices,setPrices}) {
-  const w = useWindowWidth();
-  const isTablet = w >= 768;
   const [view,setView]=useState("main");
   const [selBId,setSelBId]=useState(null);
   const [editPlan,setEditPlan]=useState(null);
@@ -1681,8 +1612,42 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
     </div>
   );
 
-  if(view==="addBuilder") return <BuilderForm isEdit={false} builders={builders} setBuilders={setBuilders} setBuilderNums={setBuilderNums} setFloorPlans={setFloorPlans} setView={setView} S={S}/>;
-  if(view==="editBuilder") return <BuilderForm isEdit={true} selBId={selBId} builders={builders} setBuilders={setBuilders} setBuilderNums={setBuilderNums} setFloorPlans={setFloorPlans} setView={setView} S={S}/>;
+  if(view==="addBuilder"||view==="editBuilder") {
+    const isEdit=view==="editBuilder";
+    const eb=isEdit?builders.find(b=>b.id===selBId):null;
+    const [fd,setFd]=useState(isEdit?{...eb}:{name:"",company:"",email:"",prefix:"",startNum:"1"});
+    const colorIdx=builders.length%BUILDER_COLORS.length;
+    const save=()=>{
+      if(!fd.name||!fd.company||!fd.prefix)return;
+      if(isEdit){setBuilders(prev=>prev.map(b=>b.id===selBId?{...b,...fd}:b));setView("builderDetail");return;}
+      else{
+        const id=fd.name.toLowerCase().replace(/[^a-z0-9]/g,"_")+Date.now();
+        const newB={id,name:fd.name,company:fd.company,email:fd.email,prefix:fd.prefix.toUpperCase(),lastNum:parseInt(fd.startNum||1)-1,color:BUILDER_COLORS[colorIdx]};
+        setBuilders(prev=>[...prev,newB]);
+        setBuilderNums(prev=>({...prev,[id]:parseInt(fd.startNum||1)-1}));
+        setFloorPlans(prev=>({...prev,[id]:[]}));
+      }
+      setView("main");
+    };
+    return (
+      <div style={{paddingBottom:16}}>
+        <div style={S.hdr}><button style={S.btnBk} onClick={()=>setView(isEdit?"builderDetail":"main")}>← Back</button><div style={S.eye}>SETTINGS</div><div style={S.ttl}>{isEdit?"Edit Builder":"Add Builder"}</div></div>
+        <div style={{padding:"0 16px",display:"flex",flexDirection:"column",gap:12}}>
+          <div style={S.card}><div style={S.cp}><div style={S.lbl}>BUILDER NAME</div><input value={fd.name||""} onChange={e=>setFd(p=>({...p,name:e.target.value}))} placeholder="e.g. Bryan" style={S.inp}/></div></div>
+          <div style={S.card}><div style={S.cp}><div style={S.lbl}>COMPANY NAME (Bill To)</div><input value={fd.company||""} onChange={e=>setFd(p=>({...p,company:e.target.value}))} placeholder="e.g. Bryan Lagaly" style={S.inp}/></div></div>
+          <div style={S.card}><div style={S.cp}><div style={S.lbl}>EMAIL</div><input value={fd.email||""} onChange={e=>setFd(p=>({...p,email:e.target.value}))} placeholder="e.g. billing@example.com" style={S.inp}/></div></div>
+          <div style={S.card}><div style={S.cp}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div><div style={S.lbl}>PREFIX</div><input value={fd.prefix||""} onChange={e=>setFd(p=>({...p,prefix:e.target.value.toUpperCase()}))} placeholder="e.g. BL" style={S.inp}/></div>
+              {!isEdit&&<div><div style={S.lbl}>START INVOICE #</div><input type="number" value={fd.startNum||"1"} onChange={e=>setFd(p=>({...p,startNum:e.target.value}))} placeholder="1" style={S.inp}/></div>}
+            </div>
+          </div></div>
+          {!isEdit&&fd.prefix&&<div style={{...S.card,border:"1px solid #1c2035"}}><div style={S.cp}><div style={{fontSize:11,color:"#4a5170",marginBottom:4}}>First invoice will be:</div><div style={{fontSize:18,fontWeight:700,color:"#f0b429",fontFamily:"monospace"}}>{fd.prefix}{String(parseInt(fd.startNum||1)).padStart(3,"0")}</div></div></div>}
+          <button onClick={save} style={{...S.btnP,opacity:(fd.name&&fd.company&&fd.prefix)?1:0.35}}>{isEdit?"Save Changes":"Add Builder"}</button>
+        </div>
+      </div>
+    );
+  }
 
   if(view==="prices") return (
     <div style={{paddingBottom:16}}>
@@ -1710,11 +1675,10 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
         <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12}}>PRICING</div>
         <div style={{...S.card,cursor:"pointer"}} onClick={()=>setView("prices")}><div style={{...S.cp,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:14,fontWeight:600,color:"#e8eaf0"}}>Default Prices</div><div style={{fontSize:11,color:"#4a5170",marginTop:1}}>LVP, tile, backsplash, trim rates</div></div><span style={{color:"#4a5170",fontSize:16}}>›</span></div></div>
         <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12,marginTop:16}}>BUILDERS</div>
-        <div style={{display:"grid",gridTemplateColumns:isTablet?"1fr 1fr":"1fr",gap:10}}>
         {builders.map(b=>{
           const cnt=(floorPlans[b.id]||[]).length;
           return (
-            <div key={b.id} style={{...S.card,marginBottom:0,cursor:"pointer"}} onClick={()=>{setSelBId(b.id);setView("builderDetail");}}>
+            <div key={b.id} style={{...S.card,cursor:"pointer"}} onClick={()=>{setSelBId(b.id);setView("builderDetail");}}>
               <div style={{...S.cp,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                 <div style={{display:"flex",alignItems:"center",gap:12}}>
                   <div style={{width:40,height:40,borderRadius:10,background:b.color+"18",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:10,fontWeight:800,color:b.color}}>{b.prefix}</span></div>
@@ -1729,7 +1693,6 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
             </div>
           );
         })}
-        </div>
         <button onClick={()=>setView("addBuilder")} style={{...S.btnS,marginBottom:8}}>+ Add New Builder</button>
       </div>
     </div>
@@ -1755,9 +1718,6 @@ function ViewInvoiceModal({inv,builder,onClose,onResend}) {
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const appW = useWindowWidth();
-  const appIsTablet = appW >= 768;
-  const appIsDesktop = appW >= 1024;
   const [unlocked,setUnlocked]=useState(false);
   const [screen,setScreen]=useState("home");
   const [builders,setBuilders]=useState(INIT_BUILDERS);
@@ -1793,7 +1753,7 @@ export default function App() {
   return (
     <div style={S.app}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-      <div style={{...S.wrap, maxWidth: appIsDesktop ? 900 : appIsTablet ? "100%" : 430}}>
+      <div style={S.wrap}>
         {screens[screen]||screens.home}
         <BottomNav screen={screen} setScreen={s=>{if(s==="c1")setDuplicateFrom(null);setScreen(s);}}/>
         {viewingInvoice&&<ViewInvoiceModal inv={viewingInvoice} builder={viewingBuilder} onClose={()=>setViewingInvoice(null)} onResend={inv=>{handleResend(inv);setViewingInvoice(null);}}/>}
