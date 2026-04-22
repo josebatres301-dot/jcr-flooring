@@ -1610,7 +1610,7 @@ function BuilderForm({isEdit, selBId, builders, setBuilders, setBuilderNums, set
 
 // ─── SETTINGS SCREEN ──────────────────────────────────────────────────────────
 
-function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNums,setBuilderNums,prices,setPrices}) {
+function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNums,setBuilderNums,prices,setPrices,onDeleteBuilder}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
   const isDesktop = w >= 1024;
@@ -1620,6 +1620,7 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
   const [planName,setPlanName]=useState("");
   const [planType,setPlanType]=useState("duplex");
   const [planItems,setPlanItems]=useState([]);
+  const [confirmDeleteBuilder,setConfirmDeleteBuilder]=useState(false);
 
   const selBuilder=builders.find(b=>b.id===selBId);
 
@@ -1648,6 +1649,16 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
     const plans = floorPlans[selBId]||[];
     return (
       <div style={{paddingBottom:16}}>
+        {confirmDeleteBuilder&&(
+          <ConfirmModal
+            title={`Delete ${b.name}?`}
+            message={`Delete ${b.name}? Their floor plans will be removed. Existing invoices and payment history will remain for record keeping.`}
+            confirmLabel="Delete Builder"
+            danger={true}
+            onConfirm={async()=>{await onDeleteBuilder(selBId);setConfirmDeleteBuilder(false);setView("main");}}
+            onCancel={()=>setConfirmDeleteBuilder(false)}
+          />
+        )}
         <div style={S.hdr}>
           <button style={S.btnBk} onClick={()=>setView("main")}>← Back</button>
           <div style={S.eye}>BUILDER</div>
@@ -1691,6 +1702,10 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
               </div>
             </div></div>
           ))}
+
+          <div style={{marginTop:32,paddingTop:16,borderTop:"1px solid #1c2035"}}>
+            <button onClick={()=>setConfirmDeleteBuilder(true)} style={{width:"100%",padding:13,background:"#ef444418",border:"1px solid #ef444430",color:"#ef4444",borderRadius:12,fontSize:14,fontWeight:700,cursor:"pointer"}}>Delete Builder</button>
+          </div>
         </div>
       </div>
     );
@@ -1959,6 +1974,14 @@ export default function App() {
     await updateDoc(doc(db,"builders",builderId), {lastNum:newNum});
   };
 
+  const deleteBuilder = async (builderId) => {
+    await deleteDoc(doc(db,"builders",builderId));
+    await deleteDoc(doc(db,"floorPlans",builderId));
+    setBuilders(prev => prev.filter(b => b.id !== builderId));
+    setFloorPlans(prev => { const next={...prev}; delete next[builderId]; return next; });
+    setBuilderNums(prev => { const next={...prev}; delete next[builderId]; return next; });
+  };
+
   const addWorkerFn = async (worker) => {
     setWorkers(prev=>[...prev,worker]);
     await setDoc(doc(db,"workers",worker.id), worker);
@@ -2048,7 +2071,7 @@ export default function App() {
     tracker:     <TrackerScreen builders={builders} invoices={invoices} setScreen={setScreen} tBld={tBld} setTBld={setTBld} onDuplicate={handleDuplicate} onViewInvoice={handleViewInvoice} onMarkPaid={markPaid} onDeleteInvoice={deleteInvoice}/>,
     history:     <HistoryScreen builders={builders} invoices={invoices} paid={paid} onResend={handleResend}/>,
     contractors: <ContractorsScreen workers={workers} payments={payments} onAddWorker={addWorkerFn} onUpdateWorker={updateWorkerFn} onRemoveWorker={removeWorkerFn} onAddPayment={addPaymentFn} onDeletePayment={deletePaymentFn}/>,
-    settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices}/>,
+    settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices} onDeleteBuilder={deleteBuilder}/>,
   };
 
   const navSetScreen = s => { if(s==="c1") setDuplicateFrom(null); setScreen(s); };
