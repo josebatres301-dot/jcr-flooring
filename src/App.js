@@ -1,4 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { db } from "./firebase";
+import {
+  collection, doc, getDocs, getDoc,
+  setDoc, deleteDoc, updateDoc,
+  onSnapshot, writeBatch,
+} from "firebase/firestore";
 
 function useWindowWidth() {
   const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 430);
@@ -131,6 +137,12 @@ const todayStr  = () => { const d=new Date(); return `${d.getMonth()+1}/${d.getD
 const nextNum   = (b,nums) => `${b.prefix}${String(nums[b.id]+1).padStart(3,"0")}`;
 const ageDays   = dateStr => { const [m,d,y]=dateStr.split("/"); const then=new Date(`20${y}`,m-1,d); return Math.floor((Date.now()-then)/(86400000)); };
 const blankItem = (pm={}) => { const p=LINE_ITEM_PRESETS[0]; return { id:Date.now()+Math.random(), desc:p.desc, item:p.item, unit:p.unit, qty:"", price:pm[p.desc]??p.price, flat:p.flat, autoDetail:p.autoDetail, qtyLabel:p.qtyLabel, priceOverridden:false }; };
+
+// Strip functions and File objects before writing to Firestore
+const serializeInvoice = inv => {
+  const { receipts, ...rest } = inv;
+  return { ...rest, lineItems:(inv.lineItems||[]).map(({ autoDetail, ...item }) => item) };
+};
 
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 
@@ -456,7 +468,7 @@ function HomeScreen({builders,invoices,paid,setScreen,setTBld}) {
 
 // ─── CREATE INVOICE SCREEN ────────────────────────────────────────────────────
 
-function CreateScreen({builders,setInvoices,setScreen,builderNums,setBuilderNums,floorPlans,prices,toast,duplicateFrom}) {
+function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,duplicateFrom,onInvoiceCreated}) {
   const [step,setStep]=useState(1);
   const [bId,setBId]=useState(duplicateFrom?.builder||null);
   const [mode,setMode]=useState("lines");
@@ -516,14 +528,13 @@ function CreateScreen({builders,setInvoices,setScreen,builderNums,setBuilderNums
     return{...it,[f]:v};
   }));
 
-  const generate=()=>{
+  const generate=async ()=>{
     const b=builder;
     const newN=builderNums[b.id]+1;
     const invNum=`${b.prefix}${String(newN).padStart(3,"0")}`;
     const ri=resolvedItems();
     const inv={id:Date.now(),builder:b.id,invoiceNum:invNum,address:addr+(city?" · "+city:""),city,jobType,amount:total,date:invDate,lineItems:ri,notes,receipts,floorPlan:selPlan?.name||null};
-    setInvoices(prev=>[...prev,inv]);
-    setBuilderNums(prev=>({...prev,[b.id]:newN}));
+    await onInvoiceCreated(inv, b.id, newN);
     setPreview(inv);
     toast(`Invoice ${invNum} created!`);
     setStep(4);
@@ -827,7 +838,7 @@ function CreateScreen({builders,setInvoices,setScreen,builderNums,setBuilderNums
 
 // ─── TRACKER SCREEN ───────────────────────────────────────────────────────────
 
-function TrackerScreen({builders,invoices,setInvoices,setPaid,setScreen,tBld,setTBld,onDuplicate,onViewInvoice}) {
+function TrackerScreen({builders,invoices,setScreen,tBld,setTBld,onDuplicate,onViewInvoice,onMarkPaid}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
   const isDesktop = w >= 1024;
@@ -835,11 +846,10 @@ function TrackerScreen({builders,invoices,setInvoices,setPaid,setScreen,tBld,set
   const displayed=tBld?invoices.filter(i=>i.builder===tBld):invoices;
   const activeB=tBld?builders.find(b=>b.id===tBld):null;
 
-  const doMarkPaid=id=>{
+  const doMarkPaid=async id=>{
     const inv=invoices.find(i=>i.id===id);
     if(!inv)return;
-    setPaid(prev=>[...prev,{...inv,dateInvoiced:inv.date,datePaid:todayStr()}]);
-    setInvoices(prev=>prev.filter(i=>i.id!==id));
+    await onMarkPaid(inv);
     setConfirmPay(null);
   };
 
@@ -1283,9 +1293,7 @@ function LogTab({builders, paidYear, ytd, onResend, currentYear, fmt, S}) {
 
 // ─── CONTRACTOR PAYMENTS ──────────────────────────────────────────────────────
 
-function ContractorsScreen() {
-  const [workers,setWorkers]=useState([{id:"w1",name:"Worker 1"},{id:"w2",name:"Worker 2"}]);
-  const [payments,setPayments]=useState([]);
+function ContractorsScreen({workers,payments,onAddWorker,onUpdateWorker,onRemoveWorker,onAddPayment,onDeletePayment}) {
   const [view,setView]=useState("main"); // main | log | editWorker | addWorker
   const [selWorker,setSelWorker]=useState(null);
   const [form,setForm]=useState({worker:"",amount:"",date:todayStr(),notes:""});
@@ -1299,28 +1307,27 @@ function ContractorsScreen() {
 
   const addPayment=()=>{
     if(!form.amount||!form.worker)return;
-    setPayments(prev=>[...prev,{id:Date.now(),...form}]);
+    onAddPayment({id:Date.now(),...form});
     setForm({worker:form.worker,amount:"",date:todayStr(),notes:""});
     setView("main");
   };
 
   const saveEdit=()=>{
     if(!editName.trim())return;
-    setWorkers(prev=>prev.map(w=>w.id===selWorker.id?{...w,name:editName.trim()}:w));
+    onUpdateWorker(selWorker.id, editName.trim());
     setView("main");
   };
 
   const addWorker=()=>{
     if(!newName.trim())return;
     const id="w"+Date.now();
-    setWorkers(prev=>[...prev,{id,name:newName.trim()}]);
+    onAddWorker({id,name:newName.trim()});
     setNewName("");
     setView("main");
   };
 
   const removeWorker=id=>{
-    setWorkers(prev=>prev.filter(w=>w.id!==id));
-    setPayments(prev=>prev.filter(p=>p.worker!==id));
+    onRemoveWorker(id);
     setConfirmDel(null);
     setView("main");
   };
@@ -1372,7 +1379,7 @@ function ContractorsScreen() {
                   <div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>{fmt(parseFloat(p.amount))}</div>
                   <div style={{fontSize:11,color:"#4a5170",marginTop:2}}>{p.date}{p.notes&&` · ${p.notes}`}</div>
                 </div>
-                <button onClick={()=>setPayments(prev=>prev.filter(x=>x.id!==p.id))} style={{background:"none",border:"none",color:"#4a5170",fontSize:13,cursor:"pointer",padding:"0 4px"}}>✕</button>
+                <button onClick={()=>onDeletePayment(p.id)} style={{background:"none",border:"none",color:"#4a5170",fontSize:13,cursor:"pointer",padding:"0 4px"}}>✕</button>
               </div>
             </div></div>
           ))}
@@ -1795,33 +1802,175 @@ export default function App() {
   const appIsDesktop = appW >= 1024;
   const [unlocked,setUnlocked]=useState(false);
   const [screen,setScreen]=useState("home");
-  const [builders,setBuilders]=useState(INIT_BUILDERS);
-  const [invoices,setInvoices]=useState(INIT_ACTIVE);
-  const [paid,setPaid]=useState(INIT_PAID);
+
+  // ── core state (populated by Firestore on mount) ──
+  const [builders,setBuilders]=useState([]);
+  const [invoices,setInvoices]=useState([]);
+  const [paid,setPaid]=useState([]);
   const [tBld,setTBld]=useState(null);
-  const [floorPlans,setFloorPlans]=useState(Object.fromEntries(INIT_BUILDERS.map(b=>[b.id,[]])));
-  const [builderNums,setBuilderNums]=useState(Object.fromEntries(INIT_BUILDERS.map(b=>[b.id,b.lastNum])));
-  const [prices,setPrices]=useState(Object.fromEntries(LINE_ITEM_PRESETS.map(p=>[p.desc,p.price])));
+  const [floorPlans,setFloorPlans]=useState({});
+  const [builderNums,setBuilderNums]=useState({});
+  const [prices,setPrices]=useState({});
+  const [workers,setWorkers]=useState([]);
+  const [payments,setPayments]=useState([]);
+  const [dataLoaded,setDataLoaded]=useState(false);
+
+  const syncReady = useRef(false); // true after initial load; gates write-back useEffects
+
   const [toast,setToast]=useState(null);
   const [duplicateFrom,setDuplicateFrom]=useState(null);
   const [viewingInvoice,setViewingInvoice]=useState(null);
 
-  const showToast=msg=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
+  // ── Firestore bootstrap ──────────────────────────────────────────────────────
+  useEffect(() => {
+    let unsubInvoices, unsubPaid;
 
+    const init = async () => {
+      const buildersSnap = await getDocs(collection(db,"builders"));
+
+      if (buildersSnap.empty) {
+        // ── First-ever launch: seed the database ──
+        const batch = writeBatch(db);
+        INIT_BUILDERS.forEach(b => batch.set(doc(db,"builders",b.id), b));
+        INIT_ACTIVE.forEach(inv => batch.set(doc(db,"invoices",String(inv.id)), serializeInvoice(inv)));
+        INIT_PAID.forEach(inv => batch.set(doc(db,"paid",String(inv.id)), inv));
+        INIT_BUILDERS.forEach(b => batch.set(doc(db,"floorPlans",b.id), {plans:[]}));
+        batch.set(doc(db,"prices","default"), Object.fromEntries(LINE_ITEM_PRESETS.map(p=>[p.desc,p.price])));
+        batch.set(doc(db,"workers","w1"), {id:"w1",name:"Worker 1"});
+        batch.set(doc(db,"workers","w2"), {id:"w2",name:"Worker 2"});
+        await batch.commit();
+
+        // Set local state directly (listeners will also fire shortly after)
+        setBuilders(INIT_BUILDERS);
+        setBuilderNums(Object.fromEntries(INIT_BUILDERS.map(b=>[b.id,b.lastNum])));
+        setFloorPlans(Object.fromEntries(INIT_BUILDERS.map(b=>[b.id,[]])));
+        setPrices(Object.fromEntries(LINE_ITEM_PRESETS.map(p=>[p.desc,p.price])));
+        setWorkers([{id:"w1",name:"Worker 1"},{id:"w2",name:"Worker 2"}]);
+      } else {
+        // ── Subsequent launch: load all data ──
+        const [fpSnap, priceDoc, workersSnap, paymentsSnap] = await Promise.all([
+          getDocs(collection(db,"floorPlans")),
+          getDoc(doc(db,"prices","default")),
+          getDocs(collection(db,"workers")),
+          getDocs(collection(db,"payments")),
+        ]);
+
+        const bList = buildersSnap.docs.map(d => d.data());
+        setBuilders(bList);
+        setBuilderNums(Object.fromEntries(bList.map(b=>[b.id,b.lastNum])));
+
+        const fp = {};
+        fpSnap.docs.forEach(d => { fp[d.id] = d.data().plans || []; });
+        setFloorPlans(fp);
+
+        if (priceDoc.exists()) setPrices(priceDoc.data());
+        if (!workersSnap.empty) setWorkers(workersSnap.docs.map(d => d.data()));
+        setPayments(paymentsSnap.docs.map(d => d.data()));
+      }
+
+      // ── Real-time listeners for invoices + paid (cross-device sync) ──
+      unsubInvoices = onSnapshot(collection(db,"invoices"), snap => {
+        setInvoices(snap.docs.map(d => d.data()));
+      });
+      unsubPaid = onSnapshot(collection(db,"paid"), snap => {
+        setPaid(snap.docs.map(d => d.data()));
+      });
+
+      syncReady.current = true;
+      setDataLoaded(true);
+    };
+
+    init();
+    return () => { unsubInvoices?.(); unsubPaid?.(); };
+  }, []);
+
+  // ── Write-back watchers for Settings-managed collections ────────────────────
+  useEffect(() => {
+    if (!syncReady.current || builders.length === 0) return;
+    builders.forEach(b => setDoc(doc(db,"builders",b.id), b));
+  }, [builders]);
+
+  useEffect(() => {
+    if (!syncReady.current) return;
+    Object.entries(floorPlans).forEach(([id, plans]) => {
+      setDoc(doc(db,"floorPlans",id), {plans});
+    });
+  }, [floorPlans]);
+
+  useEffect(() => {
+    if (!syncReady.current || Object.keys(prices).length === 0) return;
+    setDoc(doc(db,"prices","default"), prices);
+  }, [prices]);
+
+  // ── Action functions (Firestore writes; listeners handle local state for real-time collections) ──
+
+  const createInvoice = async (inv, builderId, newNum) => {
+    await setDoc(doc(db,"invoices",String(inv.id)), serializeInvoice(inv));
+    setBuilderNums(prev => ({...prev,[builderId]:newNum}));
+    await updateDoc(doc(db,"builders",builderId), {lastNum:newNum});
+  };
+
+  const markPaid = async (inv) => {
+    const paidInv = {...inv, dateInvoiced:inv.date, datePaid:todayStr()};
+    const {autoDetail:_a, receipts:_r, ...safePaid} = paidInv;
+    await setDoc(doc(db,"paid",String(inv.id)), safePaid);
+    await deleteDoc(doc(db,"invoices",String(inv.id)));
+  };
+
+  const addWorkerFn = async (worker) => {
+    setWorkers(prev=>[...prev,worker]);
+    await setDoc(doc(db,"workers",worker.id), worker);
+  };
+
+  const updateWorkerFn = async (id, name) => {
+    setWorkers(prev=>prev.map(w=>w.id===id?{...w,name}:w));
+    await updateDoc(doc(db,"workers",id), {name});
+  };
+
+  const removeWorkerFn = async (id) => {
+    setWorkers(prev=>prev.filter(w=>w.id!==id));
+    setPayments(prev=>prev.filter(p=>p.worker!==id));
+    await deleteDoc(doc(db,"workers",id));
+    const toDelete = payments.filter(p=>p.worker===id);
+    await Promise.all(toDelete.map(p=>deleteDoc(doc(db,"payments",String(p.id)))));
+  };
+
+  const addPaymentFn = async (payment) => {
+    setPayments(prev=>[...prev,payment]);
+    await setDoc(doc(db,"payments",String(payment.id)), payment);
+  };
+
+  const deletePaymentFn = async (id) => {
+    setPayments(prev=>prev.filter(p=>p.id!==id));
+    await deleteDoc(doc(db,"payments",String(id)));
+  };
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
+  const showToast=msg=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
   const handleDuplicate=inv=>{setDuplicateFrom(inv);setScreen("c1");};
   const handleResend=inv=>{const b=builders.find(b=>b.id===inv.builder);showToast(`Invoice ${inv.invoiceNum} resent to ${b?.email}`);};
   const handleViewInvoice=inv=>setViewingInvoice(inv);
 
   if(!unlocked) return <LockScreen onUnlock={()=>setUnlocked(true)}/>;
 
+  if(!dataLoaded) return (
+    <div style={{minHeight:"100vh",background:"#0a0c12",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',sans-serif"}}>
+      <style>{`@keyframes jcr-spin{to{transform:rotate(360deg)}}`}</style>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+      <div style={{width:44,height:44,border:"3px solid #1c2035",borderTopColor:"#f0b429",borderRadius:"50%",animation:"jcr-spin 0.8s linear infinite",marginBottom:24}}/>
+      <div style={{fontSize:11,fontWeight:700,color:"#f0b429",letterSpacing:"0.18em"}}>JCR FLOORING LLC</div>
+      <div style={{fontSize:13,color:"#4a5170",marginTop:6}}>Syncing data...</div>
+    </div>
+  );
+
   const viewingBuilder=viewingInvoice?builders.find(b=>b.id===viewingInvoice.builder):null;
 
   const screens={
     home:        <HomeScreen builders={builders} invoices={invoices} paid={paid} setScreen={setScreen} setTBld={setTBld}/>,
-    c1:          <CreateScreen builders={builders} setInvoices={setInvoices} setScreen={setScreen} builderNums={builderNums} setBuilderNums={setBuilderNums} floorPlans={floorPlans} prices={prices} toast={showToast} duplicateFrom={duplicateFrom}/>,
-    tracker:     <TrackerScreen builders={builders} invoices={invoices} setInvoices={setInvoices} setPaid={setPaid} setScreen={setScreen} tBld={tBld} setTBld={setTBld} onDuplicate={handleDuplicate} onViewInvoice={handleViewInvoice}/>,
+    c1:          <CreateScreen builders={builders} setScreen={setScreen} builderNums={builderNums} floorPlans={floorPlans} prices={prices} toast={showToast} duplicateFrom={duplicateFrom} onInvoiceCreated={createInvoice}/>,
+    tracker:     <TrackerScreen builders={builders} invoices={invoices} setScreen={setScreen} tBld={tBld} setTBld={setTBld} onDuplicate={handleDuplicate} onViewInvoice={handleViewInvoice} onMarkPaid={markPaid}/>,
     history:     <HistoryScreen builders={builders} invoices={invoices} paid={paid} onResend={handleResend}/>,
-    contractors: <ContractorsScreen/>,
+    contractors: <ContractorsScreen workers={workers} payments={payments} onAddWorker={addWorkerFn} onUpdateWorker={updateWorkerFn} onRemoveWorker={removeWorkerFn} onAddPayment={addPaymentFn} onDeletePayment={deletePaymentFn}/>,
     settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices}/>,
   };
 
