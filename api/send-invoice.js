@@ -203,10 +203,17 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const data = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
 
-    // 1. Generate PDF
-    const pdfBuffer = await buildPDF(data);
+    // Normalize: support both {invoices:[...]} bundle and legacy single-invoice format
+    const invoiceList = body.invoices
+      ? body.invoices
+      : [body]; // legacy single-invoice
+
+    const builderEmail = body.builderEmail || invoiceList[0]?.builderEmail;
+
+    // 1. Generate a PDF for each invoice
+    const pdfBuffers = await Promise.all(invoiceList.map(data => buildPDF(data)));
 
     // 2. Gmail OAuth2 access token
     const oAuth2Client = new google.auth.OAuth2(
@@ -229,17 +236,23 @@ module.exports = async function handler(req, res) {
       },
     });
 
-    // 4. Send email with PDF attachment
+    // 4. Build subject + body text
+    const subject = invoiceList.map(d => d.invoiceNum).join(' + ');
+    const bodyText = invoiceList.length === 1
+      ? `Please find attached invoice ${invoiceList[0].invoiceNum} for ${invoiceList[0].address}. Thank you for your business. — JCR Flooring LLC`
+      : `Please find attached ${invoiceList.length} invoices: ${subject}.\n\nAddresses:\n${invoiceList.map(d=>`• ${d.invoiceNum}: ${d.address}`).join('\n')}\n\nThank you for your business. — JCR Flooring LLC`;
+
+    // 5. Send one email with all PDFs attached
     await transporter.sendMail({
       from:    `JCR Flooring LLC <${process.env.GMAIL_FROM}>`,
-      to:      data.builderEmail,
-      subject: data.invoiceNum,
-      text:    `Please find attached invoice ${data.invoiceNum} for ${data.address}. Thank you for your business. — JCR Flooring LLC`,
-      attachments: [{
+      to:      builderEmail,
+      subject,
+      text:    bodyText,
+      attachments: invoiceList.map((data, i) => ({
         filename:    `${data.invoiceNum}.pdf`,
-        content:     pdfBuffer,
+        content:     pdfBuffers[i],
         contentType: 'application/pdf',
-      }],
+      })),
     });
 
     return res.status(200).json({ ok: true });

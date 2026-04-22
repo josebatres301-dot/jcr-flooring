@@ -468,19 +468,25 @@ function HomeScreen({builders,invoices,paid,setScreen,setTBld}) {
 
 // ─── CREATE INVOICE SCREEN ────────────────────────────────────────────────────
 
-function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,duplicateFrom,onInvoiceCreated,onSendInvoice}) {
+function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,duplicateFrom,onInvoiceCreated,onSendInvoice,streetHistory}) {
+  // Parse existing address into unit + street for duplicateFrom
+  const _parseAddr=addr=>{const main=(addr||"").split(" · ")[0].trim();const sp=main.indexOf(" ");return sp===-1?{unit:"",street:main}:{unit:main.slice(0,sp),street:main.slice(sp+1)};};
+  const _initAddr=_parseAddr(duplicateFrom?.address||"");
+
   const [step,setStep]=useState(1);
   const [bId,setBId]=useState(duplicateFrom?.builder||null);
   const [mode,setMode]=useState("lines");
   const [selPlan,setSelPlan]=useState(null);
-  const [addr,setAddr]=useState(duplicateFrom?.address||"");
+  const [unitNum,setUnitNum]=useState(_initAddr.unit);
+  const [streetName,setStreetName]=useState(_initAddr.street);
+  const [streetOpen,setStreetOpen]=useState(false);
   const [city,setCity]=useState(duplicateFrom?.city||"");
   const [jobType,setJobType]=useState(duplicateFrom?.jobType||"duplex");
   const [invDate,setInvDate]=useState(todayStr());
-  const [items,setItems]=useState(duplicateFrom?.lineItems?.length>0 ? duplicateFrom.lineItems.map(i=>({...i,id:Date.now()+Math.random()})) : [blankItem(prices)]);
+  const [items,setItems]=useState(duplicateFrom?.lineItems?.length>0?duplicateFrom.lineItems.map(i=>({...i,id:Date.now()+Math.random()})):[blankItem(prices)]);
   const [notes,setNotes]=useState(duplicateFrom?.notes||"");
   const [receipts,setReceipts]=useState([]);
-  const [preview,setPreview]=useState(null);
+  const [bundle,setBundle]=useState([]); // [{invoice, builder, builderId, num, formState}]
   const [confirm,setConfirm]=useState(false);
   const [sending,setSending]=useState(false);
 
@@ -529,59 +535,101 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
     return{...it,[f]:v};
   }));
 
-  const generate=async ()=>{
+  const generate=()=>{
     const b=builder;
-    const newN=builderNums[b.id]+1;
+    const sameBIdCount=bundle.filter(x=>x.builderId===b.id).length;
+    const newN=(builderNums[b.id]??0)+sameBIdCount+1;
     const invNum=`${b.prefix}${String(newN).padStart(3,"0")}`;
     const ri=resolvedItems();
-    const inv={id:Date.now(),builder:b.id,invoiceNum:invNum,address:addr+(city?" · "+city:""),city,jobType,amount:total,date:invDate,lineItems:ri,notes,receipts,floorPlan:selPlan?.name||null};
-    await onInvoiceCreated(inv, b.id, newN);
-    setPreview(inv);
-    toast(`Invoice ${invNum} created!`);
+    const fullAddr=[unitNum.trim(),streetName.trim()].filter(Boolean).join(" ");
+    const inv={id:Date.now()+Math.random(),builder:b.id,invoiceNum:invNum,address:fullAddr+(city?" · "+city:""),city,jobType,amount:total,date:invDate,lineItems:ri,notes,receipts,floorPlan:selPlan?.name||null};
+    setBundle(prev=>[...prev,{invoice:inv,builder:b,builderId:b.id,num:newN,formState:{unitNum,streetName,city,jobType,invDate,items,notes,selPlan,mode}}]);
     setStep(4);
   };
 
-  const reset=()=>{setStep(1);setBId(null);setMode("lines");setSelPlan(null);setAddr("");setCity("");setJobType("duplex");setInvDate(todayStr());setItems([blankItem(prices)]);setNotes("");setPreview(null);setConfirm(false);};
+  const reset=()=>{setStep(1);setBId(null);setMode("lines");setSelPlan(null);setUnitNum("");setStreetName("");setCity("");setJobType("duplex");setInvDate(todayStr());setItems([blankItem(prices)]);setNotes("");setReceipts([]);setBundle([]);setConfirm(false);};
 
-  // STEP 4 — Preview
-  if(step===4&&preview){
+  const addAnother=()=>{
+    const lastBId=bundle[bundle.length-1]?.builderId||null;
+    setBId(lastBId);
+    setMode("lines");setSelPlan(null);
+    setUnitNum("");setStreetName("");setCity("");
+    setJobType("duplex");setInvDate(todayStr());
+    setItems([blankItem(prices)]);setNotes("");setReceipts([]);
+    setStep(1);
+  };
+
+  // STEP 4 — Bundle Preview
+  if(step===4&&bundle.length>0){
+    const mainBuilder=bundle[0].builder;
+    const subject=bundle.map(b=>b.invoice.invoiceNum).join(" + ");
+    const bundleTotal=bundle.reduce((s,b)=>s+b.invoice.amount,0);
+
+    const handleBackEdit=()=>{
+      const last=bundle[bundle.length-1];
+      if(last?.formState){
+        const fs=last.formState;
+        setUnitNum(fs.unitNum);setStreetName(fs.streetName);setCity(fs.city);
+        setJobType(fs.jobType);setInvDate(fs.invDate);setItems(fs.items);
+        setNotes(fs.notes);setSelPlan(fs.selPlan);setMode(fs.mode);
+      }
+      setBundle(prev=>prev.slice(0,-1));
+      setStep(3);
+    };
+
     return (
       <div style={{paddingBottom:16}}>
         {confirm&&(
           <ConfirmModal
-            title={`Send Invoice ${preview.invoiceNum}?`}
-            message={`This will email the invoice to ${builder?.email}. Subject: ${preview.invoiceNum}`}
-            confirmLabel="Send Invoice"
-            onConfirm={async ()=>{
-              setConfirm(false);
-              setSending(true);
+            title={bundle.length===1?`Send Invoice ${subject}?`:`Send ${bundle.length} Invoices?`}
+            message={`Email to ${mainBuilder.email}. Subject: ${subject}`}
+            confirmLabel="Send"
+            onConfirm={async()=>{
+              setConfirm(false);setSending(true);
               try {
-                await onSendInvoice(preview, builder);
-                toast(`✓ Invoice ${preview.invoiceNum} sent to ${builder?.email}`);
-              } catch(e) {
+                for(const item of bundle){
+                  await onInvoiceCreated(item.invoice,item.builderId,item.num);
+                }
+                await onSendInvoice(bundle.map(b=>b.invoice),mainBuilder);
+                toast(`✓ ${subject} sent to ${mainBuilder.email}`);
+                reset();
+              } catch(e){
                 toast(`Failed to send — ${e.message}`);
-              } finally {
-                setSending(false);
-              }
+              } finally {setSending(false);}
             }}
             onCancel={()=>setConfirm(false)}
           />
         )}
         <div style={{...S.hdr,paddingBottom:20}}>
-          <button style={S.btnBk} onClick={()=>setStep(3)}>← Back & Edit</button>
-          <div style={{fontSize:11,fontWeight:700,color:"#10b981",letterSpacing:"0.15em",marginBottom:6}}>✓ INVOICE GENERATED</div>
-          <div style={S.ttl}>Preview</div>
+          <button style={S.btnBk} onClick={handleBackEdit}>← Back & Edit</button>
+          <div style={{fontSize:11,fontWeight:700,color:"#10b981",letterSpacing:"0.15em",marginBottom:6}}>
+            {bundle.length===1?"✓ INVOICE READY":`✓ ${bundle.length} INVOICES BUNDLED`}
+          </div>
+          <div style={S.ttl}>{bundle.length===1?"Preview":"Bundle Preview"}</div>
+          {bundle.length>1&&<div style={{fontSize:12,color:"#4a5170",marginTop:4}}>Combined total: {fmt(bundleTotal)}</div>}
         </div>
         <div style={{padding:"0 16px"}}>
-          <InvoiceCard inv={preview} builder={builder}/>
-          <button onClick={()=>!sending&&setConfirm(true)} style={{...S.btnP,background:sending?"#0d8a5e":"#10b981",color:"#fff",marginBottom:10,opacity:sending?0.8:1,cursor:sending?"default":"pointer"}}>
-            {sending?"Sending…":`📧 Send Invoice — ${preview.invoiceNum}`}
-          </button>
-          <div style={{fontSize:11,color:"#4a5170",textAlign:"center",marginBottom:4}}>To: {builder?.email}</div>
-          {preview.receipts&&preview.receipts.length>0&&(
-            <div style={{fontSize:11,color:"#f0b429",textAlign:"center",marginBottom:12}}>📎 {preview.receipts.length} receipt image{preview.receipts.length!==1?"s":""} attached</div>
+          {bundle.map((item,idx)=>(
+            <div key={item.invoice.id} style={{position:"relative",marginBottom:12}}>
+              <InvoiceCard inv={item.invoice} builder={item.builder}/>
+              {bundle.length>1&&(
+                <button onClick={()=>setBundle(prev=>prev.filter((_,i)=>i!==idx))} style={{position:"absolute",top:8,right:8,background:"#ef444418",border:"1px solid #ef444430",color:"#ef4444",borderRadius:8,fontSize:11,fontWeight:600,padding:"3px 10px",cursor:"pointer"}}>Remove</button>
+              )}
+            </div>
+          ))}
+          {bundle.length>1&&(
+            <div style={{...S.card,border:"1px solid #f0b42930",marginBottom:12}}>
+              <div style={{...S.cp,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{fontSize:13,fontWeight:700,color:"#9ca3bc"}}>BUNDLE TOTAL ({bundle.length} invoices)</div>
+                <div style={{fontSize:22,fontWeight:800,color:"#f0b429"}}>{fmt(bundleTotal)}</div>
+              </div>
+            </div>
           )}
-          {(!preview.receipts||preview.receipts.length===0)&&<div style={{marginBottom:12}}/>}
+          <button onClick={()=>!sending&&setConfirm(true)} style={{...S.btnP,background:sending?"#0d8a5e":"#10b981",color:"#fff",marginBottom:10,opacity:sending?0.8:1,cursor:sending?"default":"pointer"}}>
+            {sending?"Sending…":`📧 Send ${subject} — ${fmt(bundleTotal)}`}
+          </button>
+          <div style={{fontSize:11,color:"#4a5170",textAlign:"center",marginBottom:12}}>To: {mainBuilder.email}</div>
+          <button onClick={addAnother} style={{...S.btnS,marginBottom:10,border:"1px solid #f0b42944",color:"#f0b429"}}>+ Add Another Invoice</button>
           <button onClick={()=>setScreen("tracker")} style={{...S.btnS,marginBottom:10}}>View in Tracker</button>
           <button onClick={reset} style={S.btnS}>Create Another Invoice</button>
         </div>
@@ -628,8 +676,28 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
 
             <div style={S.card}><div style={S.cp}>
               <div style={S.lbl}>JOB SITE</div>
-              <input value={addr} onChange={e=>setAddr(e.target.value)} placeholder="Address (e.g. 1209/11 Newton)" style={{...S.inp,marginBottom:8}}/>
-              <input value={city} onChange={e=>setCity(e.target.value)} placeholder="City, State ZIP (e.g. Newton, KS 67114)" style={S.inp}/>
+              <div style={{marginBottom:8}}>
+                <div style={{fontSize:9,fontWeight:700,color:"#4a5170",letterSpacing:"0.1em",marginBottom:4}}>UNIT / BUILDING #</div>
+                <input value={unitNum} onChange={e=>setUnitNum(e.target.value)} placeholder="e.g. 2417/19" style={S.inp}/>
+              </div>
+              <div style={{position:"relative",marginBottom:8}}>
+                <div style={{fontSize:9,fontWeight:700,color:"#4a5170",letterSpacing:"0.1em",marginBottom:4}}>STREET NAME</div>
+                <input value={streetName} onChange={e=>{setStreetName(e.target.value);setStreetOpen(true);}} onFocus={()=>setStreetOpen(true)} onBlur={()=>setTimeout(()=>setStreetOpen(false),150)} placeholder="e.g. Newton St" style={S.inp}/>
+                {streetOpen&&streetName.length>0&&(streetHistory||[]).filter(s=>s.street.toLowerCase().includes(streetName.toLowerCase())).slice(0,8).length>0&&(
+                  <div style={{position:"absolute",top:"100%",left:0,right:0,background:"#12151f",border:"1px solid #1c2035",borderRadius:10,zIndex:50,maxHeight:180,overflowY:"auto",marginTop:2}}>
+                    {(streetHistory||[]).filter(s=>s.street.toLowerCase().includes(streetName.toLowerCase())).slice(0,8).map((s,i,arr)=>(
+                      <div key={i} onMouseDown={e=>{e.preventDefault();setStreetName(s.street);setCity(s.city);setStreetOpen(false);}} style={{padding:"10px 14px",cursor:"pointer",borderBottom:i<arr.length-1?"1px solid #1c2035":"none"}}>
+                        <div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>{s.street}</div>
+                        <div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{s.city}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <div style={{fontSize:9,fontWeight:700,color:"#4a5170",letterSpacing:"0.1em",marginBottom:4}}>CITY, STATE ZIP</div>
+                <input value={city} onChange={e=>setCity(e.target.value)} placeholder="e.g. Newton, KS 67114" style={S.inp}/>
+              </div>
             </div></div>
 
             <div style={S.card}><div style={S.cp}>
@@ -706,7 +774,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
               </div></div>
             )}
 
-            <button onClick={()=>{if(!addr||!city)return;if(mode==="plan"&&!selPlan)return;setStep(3);}} style={{...S.btnP,opacity:(addr&&city&&(mode==="lines"||selPlan))?1:0.35}}>
+            <button onClick={()=>{if(!streetName||!city)return;if(mode==="plan"&&!selPlan)return;setStep(3);}} style={{...S.btnP,opacity:(streetName&&city&&(mode==="lines"||selPlan))?1:0.35}}>
               {mode==="plan"?"Add One-Offs & Review →":"Add Line Items →"}
             </button>
           </>
@@ -772,7 +840,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                         <div style={{fontSize:11,color:"#4a5170"}}>Rate: ${item.price}/{item.unit}</div>
                         {!item.priceOverridden
-                          ?<button onClick={()=>updItem(item.id,"_show",true)} style={{background:"none",border:"1px solid #1c2035",color:"#9ca3bc",fontSize:11,padding:"3px 10px",borderRadius:8,cursor:"pointer"}}>Override Rate</button>
+                          ?<button onClick={()=>updItem(item.id,"priceOverridden",true)} style={{background:"none",border:"1px solid #1c2035",color:"#9ca3bc",fontSize:11,padding:"3px 10px",borderRadius:8,cursor:"pointer"}}>Override Rate</button>
                           :<div style={{display:"flex",gap:6,alignItems:"center"}}>
                             <input type="number" value={item.price} onChange={e=>updItem(item.id,"price",e.target.value)} style={{...S.inp,width:80,fontSize:12}}/>
                             <button onClick={()=>{const p=LINE_ITEM_PRESETS.find(p=>p.desc===item.desc);setItems(prev=>prev.map(it=>it.id===item.id?{...it,price:prices[item.desc]??p?.price??0,priceOverridden:false}:it));}} style={{background:"none",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"3px 8px",borderRadius:8,cursor:"pointer"}}>Reset</button>
@@ -852,14 +920,95 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
 
 // ─── TRACKER SCREEN ───────────────────────────────────────────────────────────
 
-function TrackerScreen({builders,invoices,setScreen,tBld,setTBld,onDuplicate,onViewInvoice,onMarkPaid,onDeleteInvoice}) {
+function TrackerScreen({builders,invoices,setScreen,tBld,setTBld,onDuplicate,onViewInvoice,onMarkPaid,onDeleteInvoice,onSaveManualInvoice}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
   const isDesktop = w >= 1024;
   const [confirmPay,setConfirmPay]=useState(null);
   const [confirmDelete,setConfirmDelete]=useState(null);
+  const [showManual,setShowManual]=useState(false);
+  const [manualForm,setManualForm]=useState({builderId:"",invoiceNum:"",address:"",city:"",date:todayStr(),jobType:"duplex",amount:"",notes:"",status:"active",datePaid:todayStr()});
+  const [manualSaving,setManualSaving]=useState(false);
   const displayed=tBld?invoices.filter(i=>i.builder===tBld):invoices;
   const activeB=tBld?builders.find(b=>b.id===tBld):null;
+
+  if(showManual){
+    const saveManual=async()=>{
+      if(!manualForm.builderId||!manualForm.invoiceNum||!manualForm.address||!manualForm.amount)return;
+      setManualSaving(true);
+      try{
+        await onSaveManualInvoice(manualForm);
+        setShowManual(false);
+        setManualForm({builderId:"",invoiceNum:"",address:"",city:"",date:todayStr(),jobType:"duplex",amount:"",notes:"",status:"active",datePaid:todayStr()});
+      }finally{setManualSaving(false);}
+    };
+    return (
+      <div style={{paddingBottom:16}}>
+        <div style={S.hdr}>
+          <button style={S.btnBk} onClick={()=>setShowManual(false)}>← Back</button>
+          <div style={S.eye}>TRACKER</div>
+          <div style={S.ttl}>Log Manual Invoice</div>
+          <div style={{fontSize:12,color:"#4a5170",marginTop:4}}>Record an invoice not created in the app</div>
+        </div>
+        <div style={{padding:"0 16px",display:"flex",flexDirection:"column",gap:12}}>
+          <div style={S.card}><div style={S.cp}>
+            <div style={S.lbl}>BUILDER</div>
+            <select value={manualForm.builderId} onChange={e=>setManualForm(p=>({...p,builderId:e.target.value,invoiceNum:""}))} style={S.sel}>
+              <option value="">Select builder...</option>
+              {builders.map(b=><option key={b.id} value={b.id}>{b.name} ({b.prefix})</option>)}
+            </select>
+          </div></div>
+          <div style={S.card}><div style={S.cp}>
+            <div style={S.lbl}>INVOICE NUMBER</div>
+            <input value={manualForm.invoiceNum} onChange={e=>setManualForm(p=>({...p,invoiceNum:e.target.value.toUpperCase()}))} placeholder={manualForm.builderId?(()=>{const b=builders.find(b=>b.id===manualForm.builderId);return b?`e.g. ${b.prefix}023`:""})():""} style={S.inp}/>
+          </div></div>
+          <div style={S.card}><div style={S.cp}>
+            <div style={S.lbl}>ADDRESS</div>
+            <input value={manualForm.address} onChange={e=>setManualForm(p=>({...p,address:e.target.value}))} placeholder="e.g. 2417/19 Newton St" style={{...S.inp,marginBottom:8}}/>
+            <div style={{fontSize:9,fontWeight:700,color:"#4a5170",letterSpacing:"0.1em",marginBottom:4}}>CITY, STATE ZIP</div>
+            <input value={manualForm.city} onChange={e=>setManualForm(p=>({...p,city:e.target.value}))} placeholder="e.g. Newton, KS 67114" style={S.inp}/>
+          </div></div>
+          <div style={S.card}><div style={S.cp}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div><div style={S.lbl}>DATE INVOICED</div><input value={manualForm.date} onChange={e=>setManualForm(p=>({...p,date:e.target.value}))} style={S.inp}/></div>
+              <div><div style={S.lbl}>AMOUNT ($)</div><input type="number" value={manualForm.amount} onChange={e=>setManualForm(p=>({...p,amount:e.target.value}))} placeholder="0.00" style={S.inp}/></div>
+            </div>
+          </div></div>
+          <div style={S.card}><div style={S.cp}>
+            <div style={S.lbl}>JOB TYPE</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              {[["duplex","Duplex"],["house","House"]].map(([t,label])=>(
+                <div key={t} onClick={()=>setManualForm(p=>({...p,jobType:t}))} style={{padding:"10px 12px",borderRadius:10,border:`1px solid ${manualForm.jobType===t?"#f0b429":"#1c2035"}`,background:manualForm.jobType===t?"#f0b42912":"#0a0c12",cursor:"pointer",textAlign:"center"}}>
+                  <div style={{fontSize:12,fontWeight:600,color:manualForm.jobType===t?"#f0b429":"#9ca3bc"}}>{label}</div>
+                </div>
+              ))}
+            </div>
+          </div></div>
+          <div style={S.card}><div style={S.cp}>
+            <div style={S.lbl}>STATUS</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:manualForm.status==="paid"?12:0}}>
+              {[["active","Active (Outstanding)"],["paid","Paid"]].map(([s,label])=>(
+                <div key={s} onClick={()=>setManualForm(p=>({...p,status:s}))} style={{padding:"10px 12px",borderRadius:10,border:`1px solid ${manualForm.status===s?(s==="paid"?"#10b981":"#3b82f6"):"#1c2035"}`,background:manualForm.status===s?(s==="paid"?"#10b98112":"#3b82f612"):"#0a0c12",cursor:"pointer",textAlign:"center"}}>
+                  <div style={{fontSize:12,fontWeight:600,color:manualForm.status===s?(s==="paid"?"#10b981":"#3b82f6"):"#9ca3bc"}}>{label}</div>
+                </div>
+              ))}
+            </div>
+            {manualForm.status==="paid"&&(
+              <><div style={{fontSize:9,fontWeight:700,color:"#4a5170",letterSpacing:"0.1em",marginBottom:4}}>DATE PAID</div>
+              <input value={manualForm.datePaid} onChange={e=>setManualForm(p=>({...p,datePaid:e.target.value}))} style={S.inp}/></>
+            )}
+          </div></div>
+          <div style={S.card}><div style={S.cp}>
+            <div style={S.lbl}>NOTES (optional)</div>
+            <input value={manualForm.notes} onChange={e=>setManualForm(p=>({...p,notes:e.target.value}))} placeholder="Any notes..." style={S.inp}/>
+          </div></div>
+          <button onClick={saveManual} disabled={manualSaving} style={{...S.btnP,opacity:(manualForm.builderId&&manualForm.invoiceNum&&manualForm.address&&manualForm.amount&&!manualSaving)?1:0.35}}>
+            {manualSaving?"Saving…":"Save Invoice"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const doMarkPaid=async id=>{
     const inv=invoices.find(i=>i.id===id);
@@ -897,7 +1046,10 @@ function TrackerScreen({builders,invoices,setScreen,tBld,setTBld,onDuplicate,onV
         />
       )}
       <div style={S.hdr}>
-        <div style={S.eye}>INVOICE TRACKER</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div style={S.eye}>INVOICE TRACKER</div>
+          <button onClick={()=>setShowManual(true)} style={{background:"#f0b42918",border:"1px solid #f0b42930",color:"#f0b429",borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer",marginTop:2}}>+ Log Manual</button>
+        </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={S.ttl}>{activeB?activeB.name:"All Builders"}</div>
           {tBld&&<button onClick={()=>setTBld(null)} style={{background:"#1c2035",border:"none",color:"#9ca3bc",fontSize:11,padding:"5px 12px",borderRadius:8,cursor:"pointer"}}>All</button>}
@@ -1325,6 +1477,8 @@ function LogTab({builders, paidYear, ytd, onResend, currentYear, fmt, S}) {
 
 
 // ─── CONTRACTOR PAYMENTS ──────────────────────────────────────────────────────
+const parsePayYear  = s => { const p=(s||"").split("/"); const y=p[2]||""; return y.length>2?parseInt(y):parseInt("20"+y)||0; };
+const parsePayMonth = s => parseInt((s||"").split("/")[0])||0;
 
 function ContractorsScreen({workers,payments,onAddWorker,onUpdateWorker,onRemoveWorker,onAddPayment,onDeletePayment}) {
   const [view,setView]=useState("main"); // main | log | editWorker | addWorker
@@ -1335,8 +1489,8 @@ function ContractorsScreen({workers,payments,onAddWorker,onUpdateWorker,onRemove
   const [confirmDel,setConfirmDel]=useState(null);
 
   const now=new Date();
-  const yearTotal=payments.filter(p=>{ const[,,y]=p.date.split("/"); return parseInt("20"+y)===now.getFullYear(); }).reduce((s,p)=>s+parseFloat(p.amount||0),0);
-  const yearWorker=id=>payments.filter(p=>p.worker===id&&(()=>{ const[,,y]=p.date.split("/"); return parseInt("20"+y)===now.getFullYear(); })()).reduce((s,p)=>s+parseFloat(p.amount||0),0);
+  const yearTotal=payments.filter(p=>parsePayYear(p.date)===now.getFullYear()).reduce((s,p)=>s+parseFloat(p.amount||0),0);
+  const yearWorker=id=>payments.filter(p=>p.worker===id&&parsePayYear(p.date)===now.getFullYear()).reduce((s,p)=>s+parseFloat(p.amount||0),0);
 
   const addPayment=()=>{
     if(!form.amount||!form.worker)return;
@@ -1373,8 +1527,7 @@ function ContractorsScreen({workers,payments,onAddWorker,onUpdateWorker,onRemove
     const now2 = new Date();
     const wMonth = payments.filter(p=>{
       if(p.worker!==w.id) return false;
-      const[m,,y]=p.date.split("/");
-      return parseInt(m)===now2.getMonth()+1&&parseInt("20"+y)===now2.getFullYear();
+      return parsePayMonth(p.date)===now2.getMonth()+1&&parsePayYear(p.date)===now2.getFullYear();
     }).reduce((s,p)=>s+parseFloat(p.amount||0),0);
     const wAll = payments.filter(p=>p.worker===w.id).reduce((s,p)=>s+parseFloat(p.amount||0),0);
     return (
@@ -2015,27 +2168,50 @@ export default function App() {
   const handleDuplicate=inv=>{setDuplicateFrom(inv);setScreen("c1");};
   const handleViewInvoice=inv=>setViewingInvoice(inv);
 
-  const sendInvoice = async (inv, builder) => {
+  const sendInvoice = async (invoicesArg, builder) => {
+    const invoiceList = Array.isArray(invoicesArg) ? invoicesArg : [invoicesArg];
     const res = await fetch('/api/send-invoice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        invoiceNum:     inv.invoiceNum,
-        date:           inv.date || inv.dateInvoiced || '',
-        address:        inv.address || '',
-        city:           inv.city || '',
-        jobType:        inv.jobType || 'duplex',
-        amount:         inv.amount,
-        lineItems:      inv.lineItems || [],
-        notes:          inv.notes || '',
-        builderName:    builder.name,
-        builderCompany: builder.company,
-        builderEmail:   builder.email,
+        invoices: invoiceList.map(inv => ({
+          invoiceNum:     inv.invoiceNum,
+          date:           inv.date || inv.dateInvoiced || '',
+          address:        inv.address || '',
+          city:           inv.city || '',
+          jobType:        inv.jobType || 'duplex',
+          amount:         inv.amount,
+          lineItems:      inv.lineItems || [],
+          notes:          inv.notes || '',
+          builderName:    builder.name,
+          builderCompany: builder.company,
+          builderEmail:   builder.email,
+        })),
+        builderEmail: builder.email,
       }),
     });
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
       throw new Error(error || 'Send failed');
+    }
+  };
+
+  const saveManualInvoice = async ({builderId, invoiceNum, address, city, date, jobType, amount, notes, status, datePaid}) => {
+    const id = Date.now();
+    const inv = {id, builder:builderId, invoiceNum, address:address+(city?" · "+city:""), city, jobType, amount:parseFloat(amount)||0, date, notes, lineItems:[], floorPlan:null};
+    if (status === "paid") {
+      await setDoc(doc(db,"paid",String(id)), {...inv, dateInvoiced:date, datePaid});
+    } else {
+      await setDoc(doc(db,"invoices",String(id)), inv);
+    }
+    const b = builders.find(b=>b.id===builderId);
+    if (b) {
+      const numPart = parseInt(invoiceNum.replace(b.prefix,""))||0;
+      const curNum = builderNums[builderId]??0;
+      if (numPart > curNum) {
+        setBuilderNums(prev=>({...prev,[builderId]:numPart}));
+        await updateDoc(doc(db,"builders",builderId),{lastNum:numPart});
+      }
     }
   };
 
@@ -2050,6 +2226,21 @@ export default function App() {
       showToast(`Failed to send ${inv.invoiceNum}`);
     }
   };
+
+  const streetHistory = useMemo(()=>{
+    const seen=new Map();
+    [...invoices,...paid].forEach(inv=>{
+      const main=(inv.address||"").split(" · ")[0].trim();
+      const cty=inv.city||"";
+      if(!main||!cty)return;
+      const sp=main.indexOf(" ");
+      const street=sp===-1?main:main.slice(sp+1);
+      if(!street)return;
+      const key=`${street.toLowerCase()}|${cty.toLowerCase()}`;
+      if(!seen.has(key))seen.set(key,{street,city:cty});
+    });
+    return Array.from(seen.values());
+  },[invoices,paid]);
 
   if(!unlocked) return <LockScreen onUnlock={()=>setUnlocked(true)}/>;
 
@@ -2067,8 +2258,8 @@ export default function App() {
 
   const screens={
     home:        <HomeScreen builders={builders} invoices={invoices} paid={paid} setScreen={setScreen} setTBld={setTBld}/>,
-    c1:          <CreateScreen builders={builders} setScreen={setScreen} builderNums={builderNums} floorPlans={floorPlans} prices={prices} toast={showToast} duplicateFrom={duplicateFrom} onInvoiceCreated={createInvoice} onSendInvoice={sendInvoice}/>,
-    tracker:     <TrackerScreen builders={builders} invoices={invoices} setScreen={setScreen} tBld={tBld} setTBld={setTBld} onDuplicate={handleDuplicate} onViewInvoice={handleViewInvoice} onMarkPaid={markPaid} onDeleteInvoice={deleteInvoice}/>,
+    c1:          <CreateScreen builders={builders} setScreen={setScreen} builderNums={builderNums} floorPlans={floorPlans} prices={prices} toast={showToast} duplicateFrom={duplicateFrom} onInvoiceCreated={createInvoice} onSendInvoice={sendInvoice} streetHistory={streetHistory}/>,
+    tracker:     <TrackerScreen builders={builders} invoices={invoices} setScreen={setScreen} tBld={tBld} setTBld={setTBld} onDuplicate={handleDuplicate} onViewInvoice={handleViewInvoice} onMarkPaid={markPaid} onDeleteInvoice={deleteInvoice} onSaveManualInvoice={saveManualInvoice}/>,
     history:     <HistoryScreen builders={builders} invoices={invoices} paid={paid} onResend={handleResend}/>,
     contractors: <ContractorsScreen workers={workers} payments={payments} onAddWorker={addWorkerFn} onUpdateWorker={updateWorkerFn} onRemoveWorker={removeWorkerFn} onAddPayment={addPaymentFn} onDeletePayment={deletePaymentFn}/>,
     settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices} onDeleteBuilder={deleteBuilder}/>,
