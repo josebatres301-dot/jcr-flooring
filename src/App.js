@@ -468,7 +468,7 @@ function HomeScreen({builders,invoices,paid,setScreen,setTBld}) {
 
 // ─── CREATE INVOICE SCREEN ────────────────────────────────────────────────────
 
-function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,duplicateFrom,onInvoiceCreated}) {
+function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,duplicateFrom,onInvoiceCreated,onSendInvoice}) {
   const [step,setStep]=useState(1);
   const [bId,setBId]=useState(duplicateFrom?.builder||null);
   const [mode,setMode]=useState("lines");
@@ -482,6 +482,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
   const [receipts,setReceipts]=useState([]);
   const [preview,setPreview]=useState(null);
   const [confirm,setConfirm]=useState(false);
+  const [sending,setSending]=useState(false);
 
   const builder=builders.find(b=>b.id===bId);
   const plans=(bId&&floorPlans[bId])||[];
@@ -551,7 +552,18 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
             title={`Send Invoice ${preview.invoiceNum}?`}
             message={`This will email the invoice to ${builder?.email}. Subject: ${preview.invoiceNum}`}
             confirmLabel="Send Invoice"
-            onConfirm={()=>{setConfirm(false);toast(`Invoice ${preview.invoiceNum} sent to ${builder?.email}`);}}
+            onConfirm={async ()=>{
+              setConfirm(false);
+              setSending(true);
+              try {
+                await onSendInvoice(preview, builder);
+                toast(`✓ Invoice ${preview.invoiceNum} sent to ${builder?.email}`);
+              } catch(e) {
+                toast(`Failed to send — ${e.message}`);
+              } finally {
+                setSending(false);
+              }
+            }}
             onCancel={()=>setConfirm(false)}
           />
         )}
@@ -562,7 +574,9 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
         </div>
         <div style={{padding:"0 16px"}}>
           <InvoiceCard inv={preview} builder={builder}/>
-          <button onClick={()=>setConfirm(true)} style={{...S.btnP,background:"#10b981",color:"#fff",marginBottom:10}}>📧 Send Invoice — {preview.invoiceNum}</button>
+          <button onClick={()=>!sending&&setConfirm(true)} style={{...S.btnP,background:sending?"#0d8a5e":"#10b981",color:"#fff",marginBottom:10,opacity:sending?0.8:1,cursor:sending?"default":"pointer"}}>
+            {sending?"Sending…":`📧 Send Invoice — ${preview.invoiceNum}`}
+          </button>
           <div style={{fontSize:11,color:"#4a5170",textAlign:"center",marginBottom:4}}>To: {builder?.email}</div>
           {preview.receipts&&preview.receipts.length>0&&(
             <div style={{fontSize:11,color:"#f0b429",textAlign:"center",marginBottom:12}}>📎 {preview.receipts.length} receipt image{preview.receipts.length!==1?"s":""} attached</div>
@@ -1946,10 +1960,45 @@ export default function App() {
   };
 
   // ── Handlers ────────────────────────────────────────────────────────────────
-  const showToast=msg=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
+  const showToast=msg=>{setToast(msg);setTimeout(()=>setToast(null),3500);};
   const handleDuplicate=inv=>{setDuplicateFrom(inv);setScreen("c1");};
-  const handleResend=inv=>{const b=builders.find(b=>b.id===inv.builder);showToast(`Invoice ${inv.invoiceNum} resent to ${b?.email}`);};
   const handleViewInvoice=inv=>setViewingInvoice(inv);
+
+  const sendInvoice = async (inv, builder) => {
+    const res = await fetch('/api/send-invoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        invoiceNum:     inv.invoiceNum,
+        date:           inv.date || inv.dateInvoiced || '',
+        address:        inv.address || '',
+        city:           inv.city || '',
+        jobType:        inv.jobType || 'duplex',
+        amount:         inv.amount,
+        lineItems:      inv.lineItems || [],
+        notes:          inv.notes || '',
+        builderName:    builder.name,
+        builderCompany: builder.company,
+        builderEmail:   builder.email,
+      }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(error || 'Send failed');
+    }
+  };
+
+  const handleResend = async (inv) => {
+    const b = builders.find(b => b.id === inv.builder);
+    if (!b) return;
+    showToast(`Sending ${inv.invoiceNum}…`);
+    try {
+      await sendInvoice(inv, b);
+      showToast(`✓ ${inv.invoiceNum} sent to ${b.email}`);
+    } catch (e) {
+      showToast(`Failed to send ${inv.invoiceNum}`);
+    }
+  };
 
   if(!unlocked) return <LockScreen onUnlock={()=>setUnlocked(true)}/>;
 
@@ -1967,7 +2016,7 @@ export default function App() {
 
   const screens={
     home:        <HomeScreen builders={builders} invoices={invoices} paid={paid} setScreen={setScreen} setTBld={setTBld}/>,
-    c1:          <CreateScreen builders={builders} setScreen={setScreen} builderNums={builderNums} floorPlans={floorPlans} prices={prices} toast={showToast} duplicateFrom={duplicateFrom} onInvoiceCreated={createInvoice}/>,
+    c1:          <CreateScreen builders={builders} setScreen={setScreen} builderNums={builderNums} floorPlans={floorPlans} prices={prices} toast={showToast} duplicateFrom={duplicateFrom} onInvoiceCreated={createInvoice} onSendInvoice={sendInvoice}/>,
     tracker:     <TrackerScreen builders={builders} invoices={invoices} setScreen={setScreen} tBld={tBld} setTBld={setTBld} onDuplicate={handleDuplicate} onViewInvoice={handleViewInvoice} onMarkPaid={markPaid}/>,
     history:     <HistoryScreen builders={builders} invoices={invoices} paid={paid} onResend={handleResend}/>,
     contractors: <ContractorsScreen workers={workers} payments={payments} onAddWorker={addWorkerFn} onUpdateWorker={updateWorkerFn} onRemoveWorker={removeWorkerFn} onAddPayment={addPaymentFn} onDeletePayment={deletePaymentFn}/>,
