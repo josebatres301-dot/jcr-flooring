@@ -171,6 +171,7 @@ function BottomNav({ screen, setScreen }) {
   const _w = useWindowWidth();
   const _isTablet = _w >= 768;
   const _isDesktop = _w >= 1024;
+  if (_isDesktop) return null;
   const tabs = [
     {id:"home",        scr:"home",         label:"Home"},
     {id:"create",      scr:"c1",           label:"Invoice"},
@@ -188,6 +189,37 @@ function BottomNav({ screen, setScreen }) {
           <button key={t.id} onClick={()=>setScreen(t.scr)} style={{flex:1,padding:"13px 0 10px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
             <NavIcon id={t.id} active={active}/>
             <span style={{fontSize:9,fontWeight:700,color:active?"#f0b429":"#3a3f55",letterSpacing:"0.05em"}}>{t.label.toUpperCase()}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── SIDEBAR NAV (desktop only) ──────────────────────────────────────────────
+
+function SidebarNav({ screen, setScreen }) {
+  const tabs = [
+    {id:"home",        scr:"home",        label:"Home"},
+    {id:"create",      scr:"c1",          label:"Invoice"},
+    {id:"tracker",     scr:"tracker",     label:"Tracker"},
+    {id:"history",     scr:"history",     label:"Finance"},
+    {id:"contractors", scr:"contractors", label:"Workers"},
+    {id:"settings",    scr:"settings",    label:"Settings"},
+  ];
+  const inCreate = ["c1","c2","c3","preview"].includes(screen);
+  return (
+    <div style={{width:200,flexShrink:0,background:"#0e1118",borderRight:"1px solid #1c2035",position:"sticky",top:0,height:"100vh",display:"flex",flexDirection:"column",overflowY:"auto"}}>
+      <div style={{padding:"32px 20px 24px"}}>
+        <div style={{fontSize:9,fontWeight:700,color:"#f0b429",letterSpacing:"0.18em",marginBottom:4}}>JCR FLOORING LLC</div>
+        <div style={{fontSize:11,color:"#4a5170"}}>Dashboard</div>
+      </div>
+      {tabs.map(t=>{
+        const active = screen===t.scr||(t.id==="create"&&inCreate);
+        return (
+          <button key={t.id} onClick={()=>setScreen(t.scr)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 20px",background:active?"#f0b42912":"none",border:"none",borderLeft:`3px solid ${active?"#f0b429":"transparent"}`,cursor:"pointer",width:"100%",textAlign:"left"}}>
+            <NavIcon id={t.id} active={active}/>
+            <span style={{fontSize:13,fontWeight:600,color:active?"#f0b429":"#4a5170"}}>{t.label}</span>
           </button>
         );
       })}
@@ -361,6 +393,7 @@ function ConfirmModal({title,message,onConfirm,onCancel,confirmLabel="Confirm",d
 function HomeScreen({builders,invoices,paid,setScreen,setTBld}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
+  const isDesktop = w >= 1024;
   const grand = invoices.reduce((s,i)=>s+i.amount,0);
   const now = new Date();
   const thisMonth = `${now.getMonth()+1}/${now.getFullYear()}`;
@@ -390,7 +423,7 @@ function HomeScreen({builders,invoices,paid,setScreen,setTBld}) {
       </div>
       <div style={{padding:"0 16px"}}>
         <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12}}>BUILDERS</div>
-        <div style={{display:"grid",gridTemplateColumns:isTablet?"1fr 1fr":"1fr",gap:10}}>
+        <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr 1fr":isTablet?"1fr 1fr":"1fr",gap:10}}>
         {builders.map(b=>{
           const total=invoices.filter(i=>i.builder===b.id).reduce((s,i)=>s+i.amount,0);
           const cnt=invoices.filter(i=>i.builder===b.id).length;
@@ -797,6 +830,7 @@ function CreateScreen({builders,setInvoices,setScreen,builderNums,setBuilderNums
 function TrackerScreen({builders,invoices,setInvoices,setPaid,setScreen,tBld,setTBld,onDuplicate,onViewInvoice}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
+  const isDesktop = w >= 1024;
   const [confirmPay,setConfirmPay]=useState(null);
   const displayed=tBld?invoices.filter(i=>i.builder===tBld):invoices;
   const activeB=tBld?builders.find(b=>b.id===tBld):null;
@@ -841,7 +875,7 @@ function TrackerScreen({builders,invoices,setInvoices,setPaid,setScreen,tBld,set
 
       <div style={{padding:"0 16px"}}>
         {displayed.length===0&&<div style={{textAlign:"center",padding:"48px 0",color:"#4a5170",fontSize:14}}>No outstanding invoices</div>}
-        <div style={{display:"grid",gridTemplateColumns:isTablet?"1fr 1fr":"1fr",gap:10}}>
+        <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr 1fr":isTablet?"1fr 1fr":"1fr",gap:10}}>
         {displayed.map(inv=>{
           const b=builders.find(b=>b.id===inv.builder);
           const days=ageDays(inv.date);
@@ -1115,7 +1149,7 @@ function HistoryScreen({builders, invoices, paid, onResend}) {
             ) : (
               <>
                 <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12}}>{currentYear} — ALL MONTHS</div>
-                <div style={{display:"grid",gridTemplateColumns:isTablet?"1fr 1fr":"1fr",gap:10}}>
+                <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr 1fr":isTablet?"1fr 1fr":"1fr",gap:10}}>
                 {monthlyData.filter(m=>m.total>0).map(m=>(
                   <div key={m.month} style={{...S.card,marginBottom:0,cursor:"pointer"}} onClick={()=>setSelMonth(m.month)}>
                     <div style={{...S.cp,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -1151,7 +1185,7 @@ function HistoryScreen({builders, invoices, paid, onResend}) {
         {tab==="builders" && (
           <>
             <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12}}>RANKED BY REVENUE — {currentYear}</div>
-            <div style={{display:"grid",gridTemplateColumns:isTablet?"1fr 1fr":"1fr",gap:10}}>
+            <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr 1fr":isTablet?"1fr 1fr":"1fr",gap:10}}>
             {builderBreakdown.map((b,i)=>(
               <div key={b.id} style={{...S.card,marginBottom:0}}><div style={S.cp}>
                 <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
@@ -1539,6 +1573,7 @@ function BuilderForm({isEdit, selBId, builders, setBuilders, setBuilderNums, set
 function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNums,setBuilderNums,prices,setPrices}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
+  const isDesktop = w >= 1024;
   const [view,setView]=useState("main");
   const [selBId,setSelBId]=useState(null);
   const [editPlan,setEditPlan]=useState(null);
@@ -1710,7 +1745,7 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
         <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12}}>PRICING</div>
         <div style={{...S.card,cursor:"pointer"}} onClick={()=>setView("prices")}><div style={{...S.cp,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:14,fontWeight:600,color:"#e8eaf0"}}>Default Prices</div><div style={{fontSize:11,color:"#4a5170",marginTop:1}}>LVP, tile, backsplash, trim rates</div></div><span style={{color:"#4a5170",fontSize:16}}>›</span></div></div>
         <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12,marginTop:16}}>BUILDERS</div>
-        <div style={{display:"grid",gridTemplateColumns:isTablet?"1fr 1fr":"1fr",gap:10}}>
+        <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr 1fr":isTablet?"1fr 1fr":"1fr",gap:10}}>
         {builders.map(b=>{
           const cnt=(floorPlans[b.id]||[]).length;
           return (
@@ -1790,15 +1825,26 @@ export default function App() {
     settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices}/>,
   };
 
+  const navSetScreen = s => { if(s==="c1") setDuplicateFrom(null); setScreen(s); };
+
   return (
     <div style={S.app}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-      <div style={{...S.wrap, maxWidth: appIsDesktop ? 900 : appIsTablet ? "100%" : 430}}>
-        {screens[screen]||screens.home}
-        <BottomNav screen={screen} setScreen={s=>{if(s==="c1")setDuplicateFrom(null);setScreen(s);}}/>
-        {viewingInvoice&&<ViewInvoiceModal inv={viewingInvoice} builder={viewingBuilder} onClose={()=>setViewingInvoice(null)} onResend={inv=>{handleResend(inv);setViewingInvoice(null);}}/>}
-        {toast&&<div style={{position:"fixed",bottom:84,left:"50%",transform:"translateX(-50%)",background:"#10b981",color:"#fff",padding:"10px 22px",borderRadius:100,fontSize:13,fontWeight:700,zIndex:1000,whiteSpace:"nowrap",boxShadow:"0 4px 24px rgba(0,0,0,0.5)"}}>{toast}</div>}
-      </div>
+      {appIsDesktop ? (
+        <div style={{display:"flex",width:"100%",maxWidth:1100,minHeight:"100vh"}}>
+          <SidebarNav screen={screen} setScreen={navSetScreen}/>
+          <div style={{flex:1,minWidth:0,background:"#0a0c12",paddingBottom:24}}>
+            {screens[screen]||screens.home}
+          </div>
+        </div>
+      ) : (
+        <div style={{...S.wrap, maxWidth: appIsTablet ? "100%" : 430}}>
+          {screens[screen]||screens.home}
+          <BottomNav screen={screen} setScreen={navSetScreen}/>
+        </div>
+      )}
+      {viewingInvoice&&<ViewInvoiceModal inv={viewingInvoice} builder={viewingBuilder} onClose={()=>setViewingInvoice(null)} onResend={inv=>{handleResend(inv);setViewingInvoice(null);}}/>}
+      {toast&&<div style={{position:"fixed",bottom:appIsDesktop?24:84,left:"50%",transform:"translateX(-50%)",background:"#10b981",color:"#fff",padding:"10px 22px",borderRadius:100,fontSize:13,fontWeight:700,zIndex:1000,whiteSpace:"nowrap",boxShadow:"0 4px 24px rgba(0,0,0,0.5)"}}>{toast}</div>}
     </div>
   );
 }
