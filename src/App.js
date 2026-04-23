@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { db } from "./firebase";
+import { db, storage } from "./firebase";
 import {
   collection, doc, getDocs, getDoc,
   setDoc, deleteDoc, updateDoc,
   onSnapshot, writeBatch,
 } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 function useWindowWidth() {
   const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 430);
@@ -141,7 +142,8 @@ const blankItem = (pm={}) => { const p=LINE_ITEM_PRESETS[0]; return { id:Date.no
 // Strip functions and File objects before writing to Firestore
 const serializeInvoice = inv => {
   const { receipts, ...rest } = inv;
-  return { ...rest, lineItems:(inv.lineItems||[]).map(({ autoDetail, ...item }) => item) };
+  const receiptUrls = (receipts||[]).filter(r=>!r.uploading&&!r.error).map(r=>r.url);
+  return { ...rest, receiptUrls, lineItems:(inv.lineItems||[]).map(({ autoDetail, ...item }) => item) };
 };
 
 // ─── STYLES ──────────────────────────────────────────────────────────────────
@@ -873,28 +875,60 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
             <div style={S.card}><div style={S.cp}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                 <div style={S.lbl}>ATTACH RECEIPTS (optional)</div>
-                <span style={{fontSize:10,color:"#4a5170"}}>{receipts.length} attached</span>
+                <span style={{fontSize:10,color:"#4a5170"}}>{receipts.filter(r=>!r.uploading&&!r.error).length} attached</span>
               </div>
               {receipts.length>0&&(
                 <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:10}}>
                   {receipts.map((r,i)=>(
-                    <div key={i} style={{position:"relative",width:72,height:72}}>
-                      <img src={r.url} alt="receipt" style={{width:72,height:72,objectFit:"cover",borderRadius:8,border:"1px solid #1c2035"}}/>
-                      <button onClick={()=>setReceipts(prev=>prev.filter((_,j)=>j!==i))}
-                        style={{position:"absolute",top:-6,right:-6,width:18,height:18,borderRadius:"50%",background:"#ef4444",border:"none",color:"#fff",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>â</button>
+                    <div key={r._key||i} style={{position:"relative",width:72,height:72}}>
+                      <img src={r.url} alt="receipt" style={{width:72,height:72,objectFit:"cover",borderRadius:8,border:`1px solid ${r.error?"#ef4444":"#1c2035"}`,opacity:r.uploading?0.5:1}}/>
+                      {r.uploading&&(
+                        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(10,12,18,0.55)",borderRadius:8}}>
+                          <style>{`@keyframes rsp{to{transform:rotate(360deg)}}`}</style>
+                          <div style={{width:18,height:18,border:"2px solid #f0b42944",borderTopColor:"#f0b429",borderRadius:"50%",animation:"rsp 0.7s linear infinite"}}/>
+                        </div>
+                      )}
+                      {r.error&&(
+                        <div onClick={()=>{
+                          const invNumForPath=`${builder?.prefix||"INV"}${String((builderNums[bId]??0)+bundle.filter(x=>x.builderId===bId).length+1).padStart(3,"0")}`;
+                          setReceipts(prev=>prev.map((x,j)=>j===i?{...x,error:false,uploading:true}:x));
+                          fetch(r.url).then(res=>res.blob()).then(blob=>{
+                            const storageRef=ref(storage,`receipts/${invNumForPath}/${Date.now()}_${r.name}`);
+                            return uploadBytes(storageRef,blob);
+                          }).then(snap=>getDownloadURL(snap.ref)).then(url=>{
+                            setReceipts(prev=>prev.map((x,j)=>j===i?{...x,url,uploading:false,error:false}:x));
+                          }).catch(()=>{
+                            setReceipts(prev=>prev.map((x,j)=>j===i?{...x,uploading:false,error:true}:x));
+                          });
+                        }} style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(239,68,68,0.6)",borderRadius:8,cursor:"pointer"}}>
+                          <span style={{fontSize:9,fontWeight:700,color:"#fff",textAlign:"center"}}>Tap to retry</span>
+                        </div>
+                      )}
+                      {!r.uploading&&(
+                        <button onClick={()=>setReceipts(prev=>prev.filter((_,j)=>j!==i))}
+                          style={{position:"absolute",top:-6,right:-6,width:18,height:18,borderRadius:"50%",background:"#ef4444",border:"none",color:"#fff",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+                      )}
                       <div style={{fontSize:9,color:"#4a5170",marginTop:3,textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:72}}>{r.name}</div>
                     </div>
                   ))}
                 </div>
               )}
               <label style={{display:"block",width:"100%",padding:12,background:"none",color:"#f0b429",borderRadius:10,border:"1px dashed #f0b42944",fontSize:13,fontWeight:600,cursor:"pointer",textAlign:"center",boxSizing:"border-box"}}>
-                ð Add Receipt Image
+                📎 Add Receipt Image
                 <input type="file" accept="image/*" multiple style={{display:"none"}}
                   onChange={e=>{
                     const files=Array.from(e.target.files);
+                    const invNumForPath=`${builder?.prefix||"INV"}${String((builderNums[bId]??0)+bundle.filter(x=>x.builderId===bId).length+1).padStart(3,"0")}`;
                     files.forEach(file=>{
-                      const url=URL.createObjectURL(file);
-                      setReceipts(prev=>[...prev,{name:file.name,url,file}]);
+                      const localUrl=URL.createObjectURL(file);
+                      const _key=Date.now()+Math.random();
+                      setReceipts(prev=>[...prev,{_key,name:file.name,url:localUrl,uploading:true,error:false}]);
+                      const storageRef=ref(storage,`receipts/${invNumForPath}/${Date.now()}_${file.name}`);
+                      uploadBytes(storageRef,file).then(snap=>getDownloadURL(snap.ref)).then(url=>{
+                        setReceipts(prev=>prev.map(r=>r._key===_key?{...r,url,uploading:false}:r));
+                      }).catch(()=>{
+                        setReceipts(prev=>prev.map(r=>r._key===_key?{...r,uploading:false,error:true}:r));
+                      });
                     });
                     e.target.value="";
                   }}/>
@@ -2186,6 +2220,7 @@ export default function App() {
           builderName:    builder.name,
           builderCompany: builder.company,
           builderEmail:   builder.email,
+          receiptUrls:    (inv.receipts||[]).filter(r=>!r.uploading&&!r.error).map(r=>r.url),
         })),
         builderEmail: builder.email,
       }),

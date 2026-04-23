@@ -1,6 +1,7 @@
 const PDFDocument = require('pdfkit');
 const nodemailer  = require('nodemailer');
 const { google }  = require('googleapis');
+const fetch       = require('node-fetch').default;
 
 // ─── Layout constants ────────────────────────────────────────────────────────
 const W  = 612;          // Letter width (pts)
@@ -236,23 +237,45 @@ module.exports = async function handler(req, res) {
       },
     });
 
-    // 4. Build subject + body text
+    // 4. Fetch receipt images from Firebase Storage URLs
+    const allReceiptUrls = invoiceList.flatMap(d => d.receiptUrls || []);
+    const receiptBuffers = await Promise.all(
+      allReceiptUrls.map(url =>
+        fetch(url)
+          .then(r => { if (!r.ok) throw new Error(`Receipt fetch failed: ${r.status}`); return r.buffer(); })
+          .catch(() => null)  // skip failed fetches rather than aborting the send
+      )
+    );
+
+    // 5. Build subject + body text
     const subject = invoiceList.map(d => d.invoiceNum).join(' + ');
     const bodyText = invoiceList.length === 1
       ? `Please find attached invoice ${invoiceList[0].invoiceNum} for ${invoiceList[0].address}. Thank you for your business. — JCR Flooring LLC`
       : `Please find attached ${invoiceList.length} invoices: ${subject}.\n\nAddresses:\n${invoiceList.map(d=>`• ${d.invoiceNum}: ${d.address}`).join('\n')}\n\nThank you for your business. — JCR Flooring LLC`;
 
-    // 5. Send one email with all PDFs attached
+    // 6. Build attachment list: PDFs first, then receipt images
+    const pdfAttachments = invoiceList.map((data, i) => ({
+      filename:    `${data.invoiceNum}.pdf`,
+      content:     pdfBuffers[i],
+      contentType: 'application/pdf',
+    }));
+    const imgAttachments = receiptBuffers
+      .map((buf, i) => {
+        if (!buf) return null;
+        const url = allReceiptUrls[i];
+        const ext = (url.split('?')[0].split('.').pop() || 'jpg').toLowerCase();
+        const mime = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+        return { filename: `Receipt-${i + 1}.${ext}`, content: buf, contentType: mime };
+      })
+      .filter(Boolean);
+
+    // 7. Send one email with all attachments
     await transporter.sendMail({
       from:    `JCR Flooring LLC <${process.env.GMAIL_FROM}>`,
       to:      builderEmail,
       subject,
       text:    bodyText,
-      attachments: invoiceList.map((data, i) => ({
-        filename:    `${data.invoiceNum}.pdf`,
-        content:     pdfBuffers[i],
-        contentType: 'application/pdf',
-      })),
+      attachments: [...pdfAttachments, ...imgAttachments],
     });
 
     return res.status(200).json({ ok: true });
