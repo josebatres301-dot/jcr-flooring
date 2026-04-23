@@ -1,7 +1,7 @@
 const PDFDocument = require('pdfkit');
 const nodemailer  = require('nodemailer');
 const { google }  = require('googleapis');
-const fetch       = require('node-fetch').default;
+// Native fetch is available in Node 18+ (Vercel default runtime)
 
 // ─── Layout constants ────────────────────────────────────────────────────────
 const W  = 612;          // Letter width (pts)
@@ -240,11 +240,16 @@ module.exports = async function handler(req, res) {
     // 4. Fetch receipt images from Firebase Storage URLs
     const allReceiptUrls = invoiceList.flatMap(d => d.receiptUrls || []);
     const receiptBuffers = await Promise.all(
-      allReceiptUrls.map(url =>
-        fetch(url)
-          .then(r => { if (!r.ok) throw new Error(`Receipt fetch failed: ${r.status}`); return r.buffer(); })
-          .catch(() => null)  // skip failed fetches rather than aborting the send
-      )
+      allReceiptUrls.map(async (url, i) => {
+        try {
+          const r = await fetch(url);
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return Buffer.from(await r.arrayBuffer());
+        } catch (e) {
+          console.error(`[send-invoice] receipt[${i}] fetch failed:`, e.message);
+          return null; // skip this image; still send the email
+        }
+      })
     );
 
     // 5. Build subject + body text
@@ -280,7 +285,7 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({ ok: true });
   } catch (err) {
-    console.error('[send-invoice]', err);
-    return res.status(500).json({ error: err.message });
+    console.error('[send-invoice] fatal:', err);
+    return res.status(500).json({ error: err.message, stack: err.stack });
   }
 };
