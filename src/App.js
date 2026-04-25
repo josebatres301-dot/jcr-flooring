@@ -38,10 +38,10 @@ const LINE_ITEM_PRESETS = [
   { desc:"LVP Install — Slab",       item:"LVP Install", unit:"SF",  price:1.15,   flat:false, autoDetail:qty=>`${qty} SQ FT on Slab @ $1.15/SF`,      qtyLabel:"SQ FT" },
   { desc:"LVP Install — Subfloor",   item:"LVP Install", unit:"SF",  price:1.75,   flat:false, autoDetail:qty=>`${qty} SQ FT on Subfloor @ $1.75/SF`,   qtyLabel:"SQ FT" },
   { desc:"Tile — Kitchen",           item:"Tile",         unit:"SF",  price:10.00,  flat:false, autoDetail:qty=>`${qty} SQFT Kitchen`,                   qtyLabel:"SQ FT" },
-  { desc:"Tile — Backsplash Small",  item:"Tile",         unit:"job", price:50.00,  flat:true,  autoDetail:()=>`1 Small Backsplash`,                     qtyLabel:null    },
-  { desc:"Tile — Backsplash Med",    item:"Tile",         unit:"job", price:75.00,  flat:true,  autoDetail:()=>`1 Medium Backsplash`,                    qtyLabel:null    },
-  { desc:"Tile — Backsplash Large",  item:"Tile",         unit:"job", price:100.00, flat:true,  autoDetail:()=>`1 Large Backsplash`,                     qtyLabel:null    },
-  { desc:"Tile — Lg + Sm Backsplash",item:"Tile",         unit:"job", price:150.00, flat:true,  autoDetail:()=>`1 Large, 1 Small Backsplash`,            qtyLabel:null    },
+  { desc:"Tile — Backsplash Small",  item:"Tile",         unit:"job", price:50.00,  flat:false, autoDetail:()=>`1 Small Backsplash`,                     qtyLabel:"qty"   },
+  { desc:"Tile — Backsplash Med",    item:"Tile",         unit:"job", price:75.00,  flat:false, autoDetail:()=>`1 Medium Backsplash`,                    qtyLabel:"qty"   },
+  { desc:"Tile — Backsplash Large",  item:"Tile",         unit:"job", price:100.00, flat:false, autoDetail:()=>`1 Large Backsplash`,                     qtyLabel:"qty"   },
+  { desc:"Tile — Lg + Sm Backsplash",item:"Tile",         unit:"job", price:150.00, flat:false, autoDetail:()=>`1 Large, 1 Small Backsplash`,            qtyLabel:"qty"   },
   { desc:"Quarter Round / Trim",     item:"Quarter Round",unit:"LF",  price:1.00,   flat:false, autoDetail:qty=>`${qty} Linear Feet`,                    qtyLabel:"LF"    },
   { desc:"Trip Fee",                 item:"Other",        unit:"job", price:100.00, flat:true,  autoDetail:()=>`Trip Fee`,                               qtyLabel:null    },
   { desc:"Concrete Drill/Prep",      item:"Other",        unit:"job", price:0.00,   flat:true,  autoDetail:()=>`Concrete Drill/Prep`,                    qtyLabel:null    },
@@ -501,10 +501,10 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
     const isFl=i.flat??preset?.flat??false;
     const baseQty=isFl?1:parseFloat(i.qty||0);
     const dq=isFl?1:mult;
-    const amt=baseQty*parseFloat(i.price||0)*(isFl?1:mult);
+    const amt=Math.round(baseQty*parseFloat(i.price||0)*(isFl?1:mult));
     const autoD=i.autoDetail||preset?.autoDetail;
     const detail=autoD?(isFl?autoD():autoD(baseQty)):(i.detail||"");
-    const unitPrice=isFl?parseFloat(i.price||0):baseQty*parseFloat(i.price||0);
+    const unitPrice=Math.round(isFl?parseFloat(i.price||0):baseQty*parseFloat(i.price||0));
     const itemLabel=preset?.item||i.item||i.desc;
     return {...i,displayQty:dq,amount:amt,detail,itemLabel,unitPrice};
   };
@@ -515,8 +515,8 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
         const preset=LINE_ITEM_PRESETS.find(p=>p.desc===i.desc);
         const isFl=preset?.flat||false;
         const dq=isFl?1:mult;
-        const amt=i.qty*i.price*(isFl?1:mult);
-        const unitPrice=isFl?i.price:i.qty*i.price;
+        const amt=Math.round(i.qty*i.price*(isFl?1:mult));
+        const unitPrice=Math.round(isFl?i.price:i.qty*i.price);
         const autoD=preset?.autoDetail;
         const detail=autoD?(isFl?autoD():autoD(i.qty)):(i.detail||"");
         return {...i,displayQty:dq,amount:amt,unitPrice,detail,itemLabel:preset?.item||i.desc};
@@ -527,7 +527,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
     return items.filter(i=>i.desc&&(i.qty||i.flat)).map(resolveItem);
   };
 
-  const total=resolvedItems().reduce((s,i)=>s+i.amount,0);
+  const total=Math.round(resolvedItems().reduce((s,i)=>s+i.amount,0));
   const addItem=()=>setItems([...items,blankItem(prices)]);
   const delItem=id=>setItems(items.filter(i=>i.id!==id));
   const updItem=(id,f,v)=>setItems(items.map(it=>{
@@ -755,7 +755,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                       const isFl=preset?.flat||false;
                       const autoD=preset?.autoDetail;
                       const detail=autoD?(isFl?autoD():autoD(it.qty)):"";
-                      const amt=it.qty*it.price*(isFl?1:mult);
+                      const amt=Math.round(it.qty*it.price*(isFl?1:mult));
                       return (
                         <div key={i} style={{padding:"5px 0",borderBottom:i<selPlan.items.length-1?"1px solid #1c2035":"none"}}>
                           <div style={{display:"flex",justifyContent:"space-between"}}>
@@ -769,7 +769,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                     <div style={{...S.div,marginTop:8}}/>
                     <div style={{display:"flex",justifyContent:"space-between"}}>
                       <span style={{fontSize:11,fontWeight:700,color:"#9ca3bc"}}>Plan Total</span>
-                      <span style={{fontSize:13,fontWeight:800,color:"#f0b429"}}>{fmt(selPlan.items.reduce((s,i)=>{const p=LINE_ITEM_PRESETS.find(p=>p.desc===i.desc);return s+i.qty*i.price*(p?.flat?1:mult);},0))}</span>
+                      <span style={{fontSize:13,fontWeight:800,color:"#f0b429"}}>{fmt(Math.round(selPlan.items.reduce((s,i)=>{const p=LINE_ITEM_PRESETS.find(p=>p.desc===i.desc);return s+i.qty*i.price*(p?.flat?1:mult);},0)))}</span>
                     </div>
                   </div>
                 )}
@@ -797,8 +797,8 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                   const autoD=preset?.autoDetail;
                   const detail=autoD?(isFl?autoD():autoD(it.qty)):"";
                   const dq=isFl?1:mult;
-                  const amt=it.qty*it.price*(isFl?1:mult);
-                  const unitPrice=isFl?it.price:it.qty*it.price;
+                  const amt=Math.round(it.qty*it.price*(isFl?1:mult));
+                  const unitPrice=Math.round(isFl?it.price:it.qty*it.price);
                   return (
                     <div key={i} style={{padding:"6px 0",borderBottom:i<selPlan.items.length-1?"1px solid #1c2035":"none"}}>
                       <div style={{display:"flex",justifyContent:"space-between"}}>
@@ -815,7 +815,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
             {items.map(item=>{
               const isFlatItem=item.flat??false;
               const baseQty=parseFloat(item.qty||0);
-              const amount=isFlatItem?parseFloat(item.price||0):baseQty*parseFloat(item.price||0)*mult;
+              const amount=Math.round(isFlatItem?parseFloat(item.price||0):baseQty*parseFloat(item.price||0)*mult);
               const autoDesc=item.autoDetail?(isFlatItem?item.autoDetail():item.qty?item.autoDetail(item.qty):item.autoDetail("...")):"";
               return (
                 <div key={item.id} style={S.card}><div style={S.cp}>
