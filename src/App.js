@@ -328,7 +328,7 @@ function InvoiceCard({inv, builder}) {
         </div>
         <div style={{background:"#fff",borderRadius:8,padding:"10px 12px",border:`1px solid ${GMED}`}}>
           <div style={{fontSize:8,fontWeight:700,color:ACC,letterSpacing:"0.12em",marginBottom:6}}>JOB SITE</div>
-          <div style={{fontSize:12,fontWeight:700,color:DARK}}>{inv.address}</div>
+          <div style={{fontSize:12,fontWeight:700,color:DARK}}>{inv.address.split(" · ")[0]}</div>
           {inv.city&&<div style={{fontSize:10,color:MUTED,marginTop:2}}>{inv.city}</div>}
         </div>
       </div>
