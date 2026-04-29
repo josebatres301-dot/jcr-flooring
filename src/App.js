@@ -991,10 +991,11 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
 
 // ─── TRACKER SCREEN ───────────────────────────────────────────────────────────
 
-function TrackerScreen({builders,invoices,setScreen,tBld,setTBld,onDuplicate,onViewInvoice,onMarkPaid,onDeleteInvoice,onSaveManualInvoice}) {
+function TrackerScreen({builders,invoices,setScreen,tBld,setTBld,onDuplicate,onViewInvoice,onMarkPaid,onDeleteInvoice,onSaveManualInvoice,resetKey}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
   const isDesktop = w >= 1024;
+  useEffect(()=>{ setTBld(null); },[resetKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const [confirmPay,setConfirmPay]=useState(null);
   const [confirmDelete,setConfirmDelete]=useState(null);
   const [showManual,setShowManual]=useState(false);
@@ -1178,12 +1179,13 @@ function TrackerScreen({builders,invoices,setScreen,tBld,setTBld,onDuplicate,onV
 
 // ─── FINANCE SCREEN ──────────────────────────────────────────────────────────
 
-function HistoryScreen({builders, invoices, paid, onResend}) {
+function HistoryScreen({builders, invoices, paid, onResend, resetKey}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
   const isDesktop = w >= 1024;
   const [tab, setTab] = useState("overview");
   const [selMonth, setSelMonth] = useState(null);
+  useEffect(()=>{ setTab("overview"); setSelMonth(null); },[resetKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -1551,9 +1553,10 @@ function LogTab({builders, paidYear, ytd, onResend, currentYear, fmt, S}) {
 const parsePayYear  = s => { const p=(s||"").split("/"); const y=p[2]||""; return y.length>2?parseInt(y):parseInt("20"+y)||0; };
 const parsePayMonth = s => parseInt((s||"").split("/")[0])||0;
 
-function ContractorsScreen({workers,payments,onAddWorker,onUpdateWorker,onRemoveWorker,onAddPayment,onDeletePayment}) {
+function ContractorsScreen({workers,payments,onAddWorker,onUpdateWorker,onRemoveWorker,onAddPayment,onDeletePayment,resetKey}) {
   const [view,setView]=useState("main"); // main | log | editWorker | addWorker
   const [selWorker,setSelWorker]=useState(null);
+  useEffect(()=>{ setView("main"); setSelWorker(null); },[resetKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const [form,setForm]=useState({worker:"",amount:"",date:todayStr(),notes:""});
   const [editName,setEditName]=useState("");
   const [newName,setNewName]=useState("");
@@ -1834,12 +1837,13 @@ function BuilderForm({isEdit, selBId, builders, setBuilders, setBuilderNums, set
 
 // ─── SETTINGS SCREEN ──────────────────────────────────────────────────────────
 
-function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNums,setBuilderNums,prices,setPrices,onDeleteBuilder,toast,presets=LINE_ITEM_PRESETS,customPresets=[],saveCustomPreset,deleteCustomPreset}) {
+function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNums,setBuilderNums,prices,setPrices,onDeleteBuilder,toast,presets=LINE_ITEM_PRESETS,customPresets=[],saveCustomPreset,deleteCustomPreset,resetKey}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
   const isDesktop = w >= 1024;
   const [view,setView]=useState("main");
   const [selBId,setSelBId]=useState(null);
+  useEffect(()=>{ setView("main"); setSelBId(null); },[resetKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const [editPlan,setEditPlan]=useState(null);
   const [planName,setPlanName]=useState("");
   const [planType,setPlanType]=useState("duplex");
@@ -2247,6 +2251,7 @@ export default function App() {
   const appIsDesktop = appW >= 1024;
   const [unlocked,setUnlocked]=useState(false);
   const [screen,setScreen]=useState("home");
+  const [resetKey,setResetKey]=useState(0);
 
   // ── core state (populated by Firestore on mount) ──
   const [builders,setBuilders]=useState([]);
@@ -2561,13 +2566,13 @@ export default function App() {
   const screens={
     home:        <HomeScreen builders={builders} invoices={invoices} paid={paid} setScreen={setScreen} setTBld={setTBld}/>,
     c1:          <CreateScreen builders={builders} setScreen={setScreen} builderNums={builderNums} floorPlans={floorPlans} prices={prices} toast={showToast} duplicateFrom={duplicateFrom} onInvoiceCreated={createInvoice} onSendInvoice={sendInvoice} streetHistory={streetHistory} presets={allPresets}/>,
-    tracker:     <TrackerScreen builders={builders} invoices={invoices} setScreen={setScreen} tBld={tBld} setTBld={setTBld} onDuplicate={handleDuplicate} onViewInvoice={handleViewInvoice} onMarkPaid={markPaid} onDeleteInvoice={deleteInvoice} onSaveManualInvoice={saveManualInvoice}/>,
-    history:     <HistoryScreen builders={builders} invoices={invoices} paid={paid} onResend={handleResend}/>,
-    contractors: <ContractorsScreen workers={workers} payments={payments} onAddWorker={addWorkerFn} onUpdateWorker={updateWorkerFn} onRemoveWorker={removeWorkerFn} onAddPayment={addPaymentFn} onDeletePayment={deletePaymentFn}/>,
-    settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices} onDeleteBuilder={deleteBuilder} toast={showToast} presets={allPresets} customPresets={customPresets} saveCustomPreset={saveCustomPreset} deleteCustomPreset={deleteCustomPreset}/>,
+    tracker:     <TrackerScreen builders={builders} invoices={invoices} setScreen={setScreen} tBld={tBld} setTBld={setTBld} onDuplicate={handleDuplicate} onViewInvoice={handleViewInvoice} onMarkPaid={markPaid} onDeleteInvoice={deleteInvoice} onSaveManualInvoice={saveManualInvoice} resetKey={resetKey}/>,
+    history:     <HistoryScreen builders={builders} invoices={invoices} paid={paid} onResend={handleResend} resetKey={resetKey}/>,
+    contractors: <ContractorsScreen workers={workers} payments={payments} onAddWorker={addWorkerFn} onUpdateWorker={updateWorkerFn} onRemoveWorker={removeWorkerFn} onAddPayment={addPaymentFn} onDeletePayment={deletePaymentFn} resetKey={resetKey}/>,
+    settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices} onDeleteBuilder={deleteBuilder} toast={showToast} presets={allPresets} customPresets={customPresets} saveCustomPreset={saveCustomPreset} deleteCustomPreset={deleteCustomPreset} resetKey={resetKey}/>,
   };
 
-  const navSetScreen = s => { if(s==="c1") setDuplicateFrom(null); setScreen(s); };
+  const navSetScreen = s => { if(s==="c1") setDuplicateFrom(null); setScreen(s); setResetKey(k=>k+1); };
 
   return (
     <div style={S.app}>
