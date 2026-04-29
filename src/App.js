@@ -471,7 +471,7 @@ function HomeScreen({builders,invoices,paid,setScreen,setTBld}) {
 
 // ─── CREATE INVOICE SCREEN ────────────────────────────────────────────────────
 
-function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,duplicateFrom,onInvoiceCreated,onSendInvoice,streetHistory}) {
+function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,duplicateFrom,onInvoiceCreated,onSendInvoice,streetHistory,presets=LINE_ITEM_PRESETS}) {
   // Parse existing address into unit + street for duplicateFrom
   const _parseAddr=addr=>{const main=(addr||"").split(" · ")[0].trim();const sp=main.indexOf(" ");return sp===-1?{unit:"",street:main}:{unit:main.slice(0,sp),street:main.slice(sp+1)};};
   const _initAddr=_parseAddr(duplicateFrom?.address||"");
@@ -498,7 +498,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
   const mult=jobType==="duplex"?2:1;
 
   const resolveItem=i=>{
-    const preset=LINE_ITEM_PRESETS.find(p=>p.desc===i.desc);
+    const preset=presets.find(p=>p.desc===i.desc);
     const isFl=i.flat??preset?.flat??false;
     const fq1=i.forceQty1??false;
     const baseQty=isFl?1:parseFloat(i.qty||0);
@@ -514,7 +514,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
   const resolvedItems=()=>{
     if(mode==="plan"&&selPlan){
       const base=selPlan.items.map(i=>{
-        const preset=LINE_ITEM_PRESETS.find(p=>p.desc===i.desc);
+        const preset=presets.find(p=>p.desc===i.desc);
         const isFl=preset?.flat||false;
         const dq=isFl?1:mult;
         const amt=Math.round(i.qty*i.price*(isFl?1:mult));
@@ -534,7 +534,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
   const delItem=id=>setItems(items.filter(i=>i.id!==id));
   const updItem=(id,f,v)=>setItems(items.map(it=>{
     if(it.id!==id)return it;
-    if(f==="desc"&&!it.isCustom){const p=LINE_ITEM_PRESETS.find(p=>p.desc===v);return p?{...it,desc:v,item:p.item,unit:p.unit,price:prices[p.desc]??p.price,flat:p.flat,autoDetail:p.autoDetail,qtyLabel:p.qtyLabel,qty:"",priceOverridden:false,forceQty1:false}:it;}
+    if(f==="desc"&&!it.isCustom){const p=presets.find(p=>p.desc===v);return p?{...it,desc:v,item:p.item,unit:p.unit,price:prices[p.desc]??p.price,flat:p.flat,autoDetail:p.autoDetail,qtyLabel:p.qtyLabel,qty:"",priceOverridden:false,forceQty1:false}:it;}
     if(f==="price")return{...it,price:v,priceOverridden:true};
     return{...it,[f]:v};
   }));
@@ -753,7 +753,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                   <div style={{marginTop:4,padding:"10px 12px",background:"#0a0c12",borderRadius:10,border:"1px solid #1c2035"}}>
                     <div style={{fontSize:10,fontWeight:700,color:"#4a5170",marginBottom:8}}>PREVIEW ({jobType==="duplex"?"×2 DUPLEX":"×1 HOUSE"})</div>
                     {selPlan.items.map((it,i)=>{
-                      const preset=LINE_ITEM_PRESETS.find(p=>p.desc===it.desc);
+                      const preset=presets.find(p=>p.desc===it.desc);
                       const isFl=preset?.flat||false;
                       const autoD=preset?.autoDetail;
                       const detail=autoD?(isFl?autoD():autoD(it.qty)):"";
@@ -771,7 +771,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                     <div style={{...S.div,marginTop:8}}/>
                     <div style={{display:"flex",justifyContent:"space-between"}}>
                       <span style={{fontSize:11,fontWeight:700,color:"#9ca3bc"}}>Plan Total</span>
-                      <span style={{fontSize:13,fontWeight:800,color:"#f0b429"}}>{fmt(Math.round(selPlan.items.reduce((s,i)=>{const p=LINE_ITEM_PRESETS.find(p=>p.desc===i.desc);return s+i.qty*i.price*(p?.flat?1:mult);},0)))}</span>
+                      <span style={{fontSize:13,fontWeight:800,color:"#f0b429"}}>{fmt(Math.round(selPlan.items.reduce((s,i)=>{const p=presets.find(p=>p.desc===i.desc);return s+i.qty*i.price*(p?.flat?1:mult);},0)))}</span>
                     </div>
                   </div>
                 )}
@@ -794,7 +794,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                   <span style={S.tag(mult===2?"#3b82f6":"#10b981",mult===2?"#3b82f615":"#10b98115")}>{mult===2?"DUPLEX ×2":"HOUSE ×1"}</span>
                 </div>
                 {selPlan.items.map((it,i)=>{
-                  const preset=LINE_ITEM_PRESETS.find(p=>p.desc===it.desc);
+                  const preset=presets.find(p=>p.desc===it.desc);
                   const isFl=preset?.flat||false;
                   const autoD=preset?.autoDetail;
                   const detail=autoD?(isFl?autoD():autoD(it.qty)):"";
@@ -840,7 +840,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                       </>
                     : <>
                         <select value={item.desc} onChange={e=>updItem(item.id,"desc",e.target.value)} style={{...S.sel,marginBottom:8}}>
-                          {LINE_ITEM_PRESETS.map(p=><option key={p.desc} value={p.desc}>{p.desc}</option>)}
+                          {presets.map(p=><option key={p.desc} value={p.desc}>{p.desc}</option>)}
                         </select>
                         {autoDesc&&<div style={{background:"#0a0c12",border:"1px solid #1c2035",borderRadius:10,padding:"8px 12px",marginBottom:8,fontSize:12,color:"#4a5170"}}>{autoDesc}{!isFlatItem&&!fq1&&mult===2&&" (×2 duplex)"}</div>}
                       </>
@@ -872,7 +872,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                                   </>
                                 : <>
                                     <input type="number" value={item.price} onChange={e=>updItem(item.id,"price",e.target.value)} style={{...S.inp,width:80,fontSize:12}}/>
-                                    <button onClick={()=>{const p=LINE_ITEM_PRESETS.find(p=>p.desc===item.desc);setItems(prev=>prev.map(it=>it.id===item.id?{...it,price:prices[item.desc]??p?.price??0,priceOverridden:false}:it));}} style={{background:"none",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"3px 8px",borderRadius:8,cursor:"pointer"}}>Reset</button>
+                                    <button onClick={()=>{const p=presets.find(p=>p.desc===item.desc);setItems(prev=>prev.map(it=>it.id===item.id?{...it,price:prices[item.desc]??p?.price??0,priceOverridden:false}:it));}} style={{background:"none",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"3px 8px",borderRadius:8,cursor:"pointer"}}>Reset</button>
                                   </>
                               )
                           }
@@ -888,7 +888,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0"}}>
                       {!item.priceOverridden
                         ?<><div style={{fontSize:14,fontWeight:700,color:"#f0b429"}}>{fmt(item.price)}</div><button onClick={()=>updItem(item.id,"price",item.price)} style={{background:"none",border:"1px solid #1c2035",color:"#9ca3bc",fontSize:11,padding:"3px 10px",borderRadius:8,cursor:"pointer"}}>Override</button></>
-                        :<><input type="number" value={item.price} onChange={e=>updItem(item.id,"price",e.target.value)} style={{...S.inp,width:90,fontSize:12}}/><button onClick={()=>{const p=LINE_ITEM_PRESETS.find(p=>p.desc===item.desc);setItems(prev=>prev.map(it=>it.id===item.id?{...it,price:prices[item.desc]??p?.price??0,priceOverridden:false}:it));}} style={{background:"none",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"3px 8px",borderRadius:8,cursor:"pointer"}}>Reset</button></>
+                        :<><input type="number" value={item.price} onChange={e=>updItem(item.id,"price",e.target.value)} style={{...S.inp,width:90,fontSize:12}}/><button onClick={()=>{const p=presets.find(p=>p.desc===item.desc);setItems(prev=>prev.map(it=>it.id===item.id?{...it,price:prices[item.desc]??p?.price??0,priceOverridden:false}:it));}} style={{background:"none",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"3px 8px",borderRadius:8,cursor:"pointer"}}>Reset</button></>
                       }
                     </div>
                   )}
@@ -1833,7 +1833,7 @@ function BuilderForm({isEdit, selBId, builders, setBuilders, setBuilderNums, set
 
 // ─── SETTINGS SCREEN ──────────────────────────────────────────────────────────
 
-function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNums,setBuilderNums,prices,setPrices,onDeleteBuilder,toast}) {
+function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNums,setBuilderNums,prices,setPrices,onDeleteBuilder,toast,presets=LINE_ITEM_PRESETS,customPresets=[],saveCustomPreset,deleteCustomPreset}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
   const isDesktop = w >= 1024;
@@ -1847,11 +1847,25 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
   const [showCopyModal,setShowCopyModal]=useState(false);
   const [copyFromId,setCopyFromId]=useState("");
   const [copySelIds,setCopySelIds]=useState(new Set());
+  const [editingPreset,setEditingPreset]=useState(null);
+  const [presetForm,setPresetForm]=useState({desc:"",item:"",unit:"job",price:0,flat:false,autoDetailTemplate:"",qtyLabel:"qty"});
 
   const selBuilder=builders.find(b=>b.id===selBId);
 
-  const addPI=()=>setPlanItems([...planItems,{desc:LINE_ITEM_PRESETS[0].desc,unit:LINE_ITEM_PRESETS[0].unit,qty:"",price:LINE_ITEM_PRESETS[0].price}]);
-  const updPI=(idx,f,v)=>{const u=[...planItems];if(f==="desc"){const p=LINE_ITEM_PRESETS.find(p=>p.desc===v);u[idx]={...u[idx],desc:v,unit:p?.unit||"job",price:p?.price??0};}else u[idx]={...u[idx],[f]:v};setPlanItems(u);};
+  const addPI=()=>setPlanItems([...planItems,{desc:presets[0].desc,unit:presets[0].unit,qty:"",price:presets[0].price}]);
+  const updPI=(idx,f,v)=>{
+    const u=[...planItems];
+    if(f==="isCustom"){
+      if(v) u[idx]={...u[idx],isCustom:true,desc:"",unit:"job"};
+      else { const p=presets[0]; u[idx]={...u[idx],isCustom:false,desc:p.desc,unit:p.unit,price:p.price}; }
+    } else if(f==="desc"&&!u[idx].isCustom){
+      const p=presets.find(p=>p.desc===v);
+      u[idx]={...u[idx],desc:v,unit:p?.unit||"job",price:p?.price??0};
+    } else {
+      u[idx]={...u[idx],[f]:v};
+    }
+    setPlanItems(u);
+  };
   const delPI=idx=>setPlanItems(planItems.filter((_,i)=>i!==idx));
 
   const openAdd=()=>{setPlanName("");setPlanType("duplex");setPlanItems([{desc:LINE_ITEM_PRESETS[0].desc,unit:LINE_ITEM_PRESETS[0].unit,qty:"",price:LINE_ITEM_PRESETS[0].price}]);setEditPlan(null);setView("editPlan");};
@@ -1968,7 +1982,7 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
               {builders.filter(b=>b.id!==selBId).some(b=>(floorPlans[b.id]||[]).length>0)&&(
                 <button onClick={()=>{setCopyFromId("");setCopySelIds(new Set());setShowCopyModal(true);}} style={{background:"#1c2035",border:"1px solid #2a3050",color:"#9ca3bc",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Copy from Builder</button>
               )}
-              <button onClick={()=>{setPlanName("");setPlanType("duplex");setPlanItems([{desc:LINE_ITEM_PRESETS[0].desc,unit:LINE_ITEM_PRESETS[0].unit,qty:"",price:LINE_ITEM_PRESETS[0].price}]);setEditPlan(null);setView("editPlan");}} style={{background:"#f0b42918",border:"1px solid #f0b42930",color:"#f0b429",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Add Plan</button>
+              <button onClick={()=>{setPlanName("");setPlanType("duplex");setPlanItems([{desc:presets[0].desc,unit:presets[0].unit,qty:"",price:presets[0].price}]);setEditPlan(null);setView("editPlan");}} style={{background:"#f0b42918",border:"1px solid #f0b42930",color:"#f0b429",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Add Plan</button>
             </div>
           </div>
           {plans.length===0&&<div style={{textAlign:"center",padding:"20px 0",color:"#4a5170",fontSize:13}}>No floor plans yet</div>}
@@ -2016,8 +2030,25 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
         <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.1em",margin:"4px 0 8px"}}>LINE ITEMS (per unit)</div>
         {planItems.map((item,idx)=>(
           <div key={idx} style={S.card}><div style={S.cp}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><div style={{...S.lbl,marginBottom:0}}>ITEM {idx+1}</div>{planItems.length>1&&<button onClick={()=>delPI(idx)} style={{background:"none",border:"none",color:"#4a5170",fontSize:14,cursor:"pointer"}}>✕</button>}</div>
-            <select value={item.desc} onChange={e=>updPI(idx,"desc",e.target.value)} style={{...S.sel,marginBottom:8}}>{LINE_ITEM_PRESETS.map(p=><option key={p.desc} value={p.desc}>{p.desc}</option>)}</select>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div style={{...S.lbl,marginBottom:0}}>ITEM {idx+1}</div>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                <button onClick={()=>updPI(idx,"isCustom",false)} style={{background:!item.isCustom?"#f0b42920":"none",border:`1px solid ${!item.isCustom?"#f0b429":"#1c2035"}`,color:!item.isCustom?"#f0b429":"#4a5170",borderRadius:6,padding:"2px 8px",fontSize:10,cursor:"pointer"}}>Preset</button>
+                <button onClick={()=>updPI(idx,"isCustom",true)} style={{background:item.isCustom?"#f0b42920":"none",border:`1px solid ${item.isCustom?"#f0b429":"#1c2035"}`,color:item.isCustom?"#f0b429":"#4a5170",borderRadius:6,padding:"2px 8px",fontSize:10,cursor:"pointer"}}>Custom</button>
+                {planItems.length>1&&<button onClick={()=>delPI(idx)} style={{background:"none",border:"none",color:"#4a5170",fontSize:14,cursor:"pointer"}}>✕</button>}
+              </div>
+            </div>
+            {item.isCustom
+              ? <>
+                  <input value={item.desc||""} onChange={e=>updPI(idx,"desc",e.target.value)} placeholder="Description (e.g. Tile Over 2 Showers)" style={{...S.inp,marginBottom:8}}/>
+                  <div style={{display:"flex",gap:4,marginBottom:8}}>
+                    {["SF","LF","job","hr"].map(u=>(
+                      <button key={u} onClick={()=>updPI(idx,"unit",u)} style={{flex:1,padding:"5px 0",background:item.unit===u?"#f0b42920":"#0a0c12",border:`1px solid ${item.unit===u?"#f0b429":"#1c2035"}`,color:item.unit===u?"#f0b429":"#4a5170",borderRadius:6,fontSize:11,fontWeight:item.unit===u?700:400,cursor:"pointer"}}>{u}</button>
+                    ))}
+                  </div>
+                </>
+              : <select value={item.desc} onChange={e=>updPI(idx,"desc",e.target.value)} style={{...S.sel,marginBottom:8}}>{presets.map(p=><option key={p.desc} value={p.desc}>{p.desc}</option>)}</select>
+            }
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               <div><div style={{...S.lbl,fontSize:9}}>QTY PER UNIT</div><input type="number" value={item.qty} onChange={e=>updPI(idx,"qty",e.target.value)} placeholder="0" style={S.inp}/></div>
               <div><div style={{...S.lbl,fontSize:9}}>PRICE ($)</div><input type="number" value={item.price} onChange={e=>updPI(idx,"price",e.target.value)} style={S.inp}/></div>
@@ -2061,6 +2092,96 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
   if(view==="addBuilder") return <BuilderForm isEdit={false} builders={builders} setBuilders={setBuilders} setBuilderNums={setBuilderNums} setFloorPlans={setFloorPlans} setView={setView} S={S}/>;
   if(view==="editBuilder") return <BuilderForm isEdit={true} selBId={selBId} builders={builders} setBuilders={setBuilders} setBuilderNums={setBuilderNums} setFloorPlans={setFloorPlans} setView={setView} S={S}/>;
 
+  if(view==="managePresets") return (
+    <div style={{paddingBottom:16}}>
+      <div style={S.hdr}><button style={S.btnBk} onClick={()=>setView("main")}>← Back</button><div style={S.eye}>SETTINGS</div><div style={S.ttl}>Line Item Presets</div></div>
+      <div style={{padding:"0 16px"}}>
+        <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:8}}>BUILT-IN PRESETS</div>
+        {LINE_ITEM_PRESETS.map(p=>(
+          <div key={p.desc} style={S.card}><div style={S.cp}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>{p.desc}</div>
+                <div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{p.item} · {p.flat?"Flat fee":"Per "+p.unit} · ${p.price}</div>
+              </div>
+              <span style={{fontSize:15,opacity:0.5}}>🔒</span>
+            </div>
+          </div></div>
+        ))}
+        <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:8,marginTop:20}}>CUSTOM PRESETS</div>
+        {customPresets.length===0&&<div style={{textAlign:"center",padding:"16px 0",color:"#4a5170",fontSize:13}}>No custom presets yet</div>}
+        {customPresets.map(p=>(
+          <div key={p.id} style={S.card}><div style={S.cp}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>{p.desc}</div>
+                <div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{p.item} · {p.flat?"Flat fee":"Per "+p.unit} · ${p.price}</div>
+                {p.autoDetailTemplate&&<div style={{fontSize:10,color:"#4a5170",marginTop:2,fontStyle:"italic"}}>"{p.autoDetailTemplate}"</div>}
+              </div>
+              <div style={{display:"flex",gap:6,marginLeft:10}}>
+                <button onClick={()=>{setEditingPreset(p);setPresetForm({desc:p.desc,item:p.item||"",unit:p.unit||"job",price:p.price||0,flat:p.flat||false,autoDetailTemplate:p.autoDetailTemplate||"",qtyLabel:p.qtyLabel||"qty"});setView("editPreset");}} style={{background:"#1c2035",border:"none",color:"#9ca3bc",fontSize:11,padding:"5px 10px",borderRadius:8,cursor:"pointer"}}>Edit</button>
+                <button onClick={()=>deleteCustomPreset&&deleteCustomPreset(p.id)} style={{background:"#ef444418",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"5px 10px",borderRadius:8,cursor:"pointer"}}>Delete</button>
+              </div>
+            </div>
+          </div></div>
+        ))}
+        <button onClick={()=>{setEditingPreset(null);setPresetForm({desc:"",item:"",unit:"job",price:0,flat:false,autoDetailTemplate:"",qtyLabel:"qty"});setView("editPreset");}} style={{...S.btnS,marginTop:8}}>+ Add Custom Preset</button>
+      </div>
+    </div>
+  );
+
+  if(view==="editPreset") return (
+    <div style={{paddingBottom:16}}>
+      <div style={S.hdr}><button style={S.btnBk} onClick={()=>setView("managePresets")}>← Back</button><div style={S.eye}>SETTINGS</div><div style={S.ttl}>{editingPreset?"Edit Preset":"New Preset"}</div></div>
+      <div style={{padding:"0 16px"}}>
+        <div style={S.card}><div style={S.cp}>
+          <div style={S.lbl}>NAME / DESCRIPTION</div>
+          <input value={presetForm.desc} onChange={e=>setPresetForm(prev=>({...prev,desc:e.target.value}))} placeholder="e.g. Tile Over 2 Showers" style={S.inp}/>
+        </div></div>
+        <div style={S.card}><div style={S.cp}>
+          <div style={S.lbl}>ITEM LABEL (PDF ITEMS COLUMN)</div>
+          <input value={presetForm.item} onChange={e=>setPresetForm(prev=>({...prev,item:e.target.value}))} placeholder="e.g. Tile, LVP Install, Other" style={S.inp}/>
+        </div></div>
+        <div style={S.card}><div style={S.cp}>
+          <div style={{...S.lbl,marginBottom:8}}>UNIT</div>
+          <div style={{display:"flex",gap:6}}>
+            {["SF","LF","job","hr"].map(u=>(
+              <button key={u} onClick={()=>setPresetForm(prev=>({...prev,unit:u}))} style={{flex:1,padding:"8px 0",background:presetForm.unit===u?"#f0b42920":"#0a0c12",border:`1px solid ${presetForm.unit===u?"#f0b429":"#1c2035"}`,color:presetForm.unit===u?"#f0b429":"#9ca3bc",borderRadius:8,fontSize:12,fontWeight:presetForm.unit===u?700:400,cursor:"pointer"}}>{u}</button>
+            ))}
+          </div>
+        </div></div>
+        <div style={S.card}><div style={S.cp}>
+          <div style={S.lbl}>DEFAULT PRICE ($)</div>
+          <input type="number" value={presetForm.price} onChange={e=>setPresetForm(prev=>({...prev,price:parseFloat(e.target.value)||0}))} style={S.inp}/>
+        </div></div>
+        <div style={S.card}><div style={S.cp}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>Flat Fee</div>
+              <div style={{fontSize:11,color:"#4a5170",marginTop:2}}>Fixed price — no qty input on invoice</div>
+            </div>
+            <div onClick={()=>setPresetForm(prev=>({...prev,flat:!prev.flat}))} style={{width:44,height:24,borderRadius:12,background:presetForm.flat?"#f0b429":"#1c2035",cursor:"pointer",display:"flex",alignItems:"center",padding:"0 3px"}}>
+              <div style={{width:18,height:18,borderRadius:"50%",background:"#fff",transform:presetForm.flat?"translateX(20px)":"translateX(0)",transition:"transform 0.2s"}}/>
+            </div>
+          </div>
+        </div></div>
+        <div style={S.card}><div style={S.cp}>
+          <div style={S.lbl}>AUTO-DESCRIPTION TEMPLATE (optional)</div>
+          <input value={presetForm.autoDetailTemplate} onChange={e=>setPresetForm(prev=>({...prev,autoDetailTemplate:e.target.value}))} placeholder='e.g. "Tile over {qty} showers"' style={S.inp}/>
+          <div style={{fontSize:10,color:"#4a5170",marginTop:6}}>Use {"{qty}"} to insert the quantity. Leave blank to use the description as-is.</div>
+        </div></div>
+        <button onClick={async()=>{
+          if(!presetForm.desc||!presetForm.item)return;
+          const id=editingPreset?.id||("cp_"+Date.now());
+          await saveCustomPreset?.({...presetForm,id});
+          setView("managePresets");
+        }} style={{...S.btnP,opacity:presetForm.desc&&presetForm.item?1:0.35}}>
+          {editingPreset?"Save Changes":"Add Preset"}
+        </button>
+      </div>
+    </div>
+  );
+
   if(view==="prices") return (
     <div style={{paddingBottom:16}}>
       <div style={S.hdr}><button style={S.btnBk} onClick={()=>setView("main")}>← Back</button><div style={S.eye}>SETTINGS</div><div style={S.ttl}>Default Prices</div><div style={{fontSize:12,color:"#4a5170",marginTop:4}}>Applies to new invoices</div></div>
@@ -2086,6 +2207,8 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
       <div style={{padding:"0 16px"}}>
         <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12}}>PRICING</div>
         <div style={{...S.card,cursor:"pointer"}} onClick={()=>setView("prices")}><div style={{...S.cp,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:14,fontWeight:600,color:"#e8eaf0"}}>Default Prices</div><div style={{fontSize:11,color:"#4a5170",marginTop:1}}>LVP, tile, backsplash, trim rates</div></div><span style={{color:"#4a5170",fontSize:16}}>›</span></div></div>
+        <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12,marginTop:16}}>LINE ITEMS</div>
+        <div style={{...S.card,cursor:"pointer"}} onClick={()=>setView("managePresets")}><div style={{...S.cp,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:14,fontWeight:600,color:"#e8eaf0"}}>Manage Line Items</div><div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{LINE_ITEM_PRESETS.length} built-in · {customPresets.length} custom</div></div><span style={{color:"#4a5170",fontSize:16}}>›</span></div></div>
         <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12,marginTop:16}}>BUILDERS</div>
         <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr 1fr":isTablet?"1fr 1fr":"1fr",gap:10}}>
         {builders.map(b=>{
@@ -2148,6 +2271,7 @@ export default function App() {
   const [prices,setPrices]=useState({});
   const [workers,setWorkers]=useState([]);
   const [payments,setPayments]=useState([]);
+  const [customPresets,setCustomPresets]=useState([]);
   const [dataLoaded,setDataLoaded]=useState(false);
 
   const syncReady = useRef(false); // true after initial load; gates write-back useEffects
@@ -2201,6 +2325,19 @@ export default function App() {
         if (priceDoc.exists()) setPrices(priceDoc.data());
         if (!workersSnap.empty) setWorkers(workersSnap.docs.map(d => d.data()));
         setPayments(paymentsSnap.docs.map(d => d.data()));
+      }
+
+      // ── Custom line item presets ──────────────────────────────────────────────
+      const presetsSnap = await getDocs(collection(db,"lineItemPresets"));
+      if (presetsSnap.empty) {
+        const defaults = [
+          {id:"cp_tile_2shower", desc:"Tile Over 2 Showers", item:"Tile", unit:"job", price:350, flat:false, autoDetailTemplate:"Tile over {qty} showers", qtyLabel:"qty"},
+          {id:"cp_tile_1shower", desc:"Tile Over 1 Shower",  item:"Tile", unit:"job", price:175, flat:false, autoDetailTemplate:"Tile over 1 shower",      qtyLabel:"qty"},
+        ];
+        await Promise.all(defaults.map(p => setDoc(doc(db,"lineItemPresets",p.id), p)));
+        setCustomPresets(defaults);
+      } else {
+        setCustomPresets(presetsSnap.docs.map(d => ({id:d.id,...d.data()})));
       }
 
       // ── Real-time listeners for invoices + paid (cross-device sync) ──
@@ -2362,6 +2499,28 @@ export default function App() {
     }
   };
 
+  const allPresets = useMemo(()=>[
+    ...LINE_ITEM_PRESETS,
+    ...customPresets.map(p=>({
+      ...p,
+      autoDetail: p.flat
+        ? ()=>(p.autoDetailTemplate||p.desc)
+        : qty=>(p.autoDetailTemplate||p.desc).replace("{qty}",qty),
+    })),
+  ],[customPresets]);
+
+  const saveCustomPreset = async (preset) => {
+    const id = preset.id||("cp_"+Date.now());
+    const data = {id, desc:preset.desc, item:preset.item||"Other", unit:preset.unit||"job", price:parseFloat(preset.price)||0, flat:preset.flat||false, autoDetailTemplate:preset.autoDetailTemplate||"", qtyLabel:preset.qtyLabel||"qty"};
+    await setDoc(doc(db,"lineItemPresets",id), data);
+    setCustomPresets(prev=>{const idx=prev.findIndex(p=>p.id===id);if(idx>-1){const n=[...prev];n[idx]=data;return n;}return [...prev,data];});
+  };
+
+  const deleteCustomPreset = async (id) => {
+    await deleteDoc(doc(db,"lineItemPresets",id));
+    setCustomPresets(prev=>prev.filter(p=>p.id!==id));
+  };
+
   const streetHistory = useMemo(()=>{
     const seen=new Map();
     [...invoices,...paid].forEach(inv=>{
@@ -2393,11 +2552,11 @@ export default function App() {
 
   const screens={
     home:        <HomeScreen builders={builders} invoices={invoices} paid={paid} setScreen={setScreen} setTBld={setTBld}/>,
-    c1:          <CreateScreen builders={builders} setScreen={setScreen} builderNums={builderNums} floorPlans={floorPlans} prices={prices} toast={showToast} duplicateFrom={duplicateFrom} onInvoiceCreated={createInvoice} onSendInvoice={sendInvoice} streetHistory={streetHistory}/>,
+    c1:          <CreateScreen builders={builders} setScreen={setScreen} builderNums={builderNums} floorPlans={floorPlans} prices={prices} toast={showToast} duplicateFrom={duplicateFrom} onInvoiceCreated={createInvoice} onSendInvoice={sendInvoice} streetHistory={streetHistory} presets={allPresets}/>,
     tracker:     <TrackerScreen builders={builders} invoices={invoices} setScreen={setScreen} tBld={tBld} setTBld={setTBld} onDuplicate={handleDuplicate} onViewInvoice={handleViewInvoice} onMarkPaid={markPaid} onDeleteInvoice={deleteInvoice} onSaveManualInvoice={saveManualInvoice}/>,
     history:     <HistoryScreen builders={builders} invoices={invoices} paid={paid} onResend={handleResend}/>,
     contractors: <ContractorsScreen workers={workers} payments={payments} onAddWorker={addWorkerFn} onUpdateWorker={updateWorkerFn} onRemoveWorker={removeWorkerFn} onAddPayment={addPaymentFn} onDeletePayment={deletePaymentFn}/>,
-    settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices} onDeleteBuilder={deleteBuilder} toast={showToast}/>,
+    settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices} onDeleteBuilder={deleteBuilder} toast={showToast} presets={allPresets} customPresets={customPresets} saveCustomPreset={saveCustomPreset} deleteCustomPreset={deleteCustomPreset}/>,
   };
 
   const navSetScreen = s => { if(s==="c1") setDuplicateFrom(null); setScreen(s); };
