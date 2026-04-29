@@ -506,7 +506,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
     const unitPrice=Math.round(baseQty*parseFloat(i.price||0));
     const amt=Math.round(unitPrice*(fq1?1:mult));
     const autoD=i.autoDetail||preset?.autoDetail;
-    const detail=autoD?(isFl?autoD():autoD(baseQty)):(i.detail||"");
+    const detail=autoD?(isFl?autoD():autoD(baseQty)):(i.isCustom?(i.desc||""):(i.detail||""));
     const itemLabel=i.isCustom?"Other":(preset?.item||i.item||i.desc);
     return {...i,displayQty:dq,amount:amt,detail,itemLabel,unitPrice};
   };
@@ -825,7 +825,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                 <div key={item.id} style={S.card}><div style={S.cp}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
                     <div style={S.lbl}>{item.isCustom?"CUSTOM ITEM":mode==="plan"?"ONE-OFF ITEM":"LINE ITEM"}</div>
-                    {items.length>1&&<button onClick={()=>delItem(item.id)} style={{background:"none",border:"none",color:"#4a5170",fontSize:15,cursor:"pointer"}}>✕</button>}
+                    {(items.length>1||item.isCustom)&&<button onClick={()=>delItem(item.id)} style={{background:"none",border:"none",color:"#4a5170",fontSize:15,cursor:"pointer"}}>✕</button>}
                   </div>
                   {item.isCustom
                     ? <>
@@ -900,7 +900,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
             <button onClick={addItem} style={{width:"100%",padding:13,background:"none",color:"#f0b429",borderRadius:12,border:"1px dashed #f0b42944",fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:6}}>
               + Add {mode==="plan"?"One-Off":"Line"} Item
             </button>
-            <button onClick={()=>setItems(prev=>[...prev,blankCustomItem()])} style={{width:"100%",padding:11,background:"none",color:"#9ca3bc",borderRadius:12,border:"1px dashed #1c203588",fontSize:12,fontWeight:600,cursor:"pointer",marginBottom:12}}>
+            <button onClick={()=>setItems(prev=>[...prev,blankCustomItem()])} style={{width:"100%",padding:11,background:"#8b5cf608",color:"#8b5cf6",borderRadius:12,border:"1px dashed #8b5cf655",fontSize:12,fontWeight:600,cursor:"pointer",marginBottom:12}}>
               + Add Custom Item
             </button>
 
