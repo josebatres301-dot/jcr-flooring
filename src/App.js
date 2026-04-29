@@ -35,18 +35,17 @@ const INIT_BUILDERS = [
 const BUILDER_COLORS = ["#3b82f6","#10b981","#8b5cf6","#f59e0b","#06b6d4","#ef4444","#f97316","#64748b","#ec4899","#14b8a6","#a855f7","#84cc16"];
 
 const LINE_ITEM_PRESETS = [
-  { desc:"LVP Install — Slab",       item:"LVP Install", unit:"SF",  price:1.15,   flat:false, autoDetail:(qty,price)=>`${qty} SQ FT on Slab @ $${price}/SF`,      qtyLabel:"SQ FT" },
-  { desc:"LVP Install — Subfloor",   item:"LVP Install", unit:"SF",  price:1.75,   flat:false, autoDetail:(qty,price)=>`${qty} SQ FT on Subfloor @ $${price}/SF`,   qtyLabel:"SQ FT" },
-  { desc:"Tile — Kitchen",           item:"Tile",         unit:"SF",  price:10.00,  flat:false, autoDetail:qty=>`${qty} SQFT Kitchen`,                   qtyLabel:"SQ FT" },
-  { desc:"Tile — Backsplash Small",  item:"Tile",         unit:"job", price:50.00,  flat:false, autoDetail:qty=>`${qty} Small Backsplash${qty>1?"es":""}`,                  qtyLabel:"qty"   },
-  { desc:"Tile — Backsplash Med",    item:"Tile",         unit:"job", price:75.00,  flat:false, autoDetail:qty=>`${qty} Medium Backsplash${qty>1?"es":""}`,                 qtyLabel:"qty"   },
-  { desc:"Tile — Backsplash Large",  item:"Tile",         unit:"job", price:100.00, flat:false, autoDetail:qty=>`${qty} Large Backsplash${qty>1?"es":""}`,                  qtyLabel:"qty"   },
-  { desc:"Tile — Lg + Sm Backsplash",item:"Tile",         unit:"job", price:150.00, flat:false, autoDetail:qty=>`${qty} Large, ${qty} Small Backsplash${qty>1?"es":""}`,   qtyLabel:"qty"   },
-  { desc:"Quarter Round / Trim",     item:"Quarter Round",unit:"LF",  price:1.00,   flat:false, autoDetail:qty=>`${qty} Linear Feet`,                    qtyLabel:"LF"    },
-  { desc:"Trip Fee",                 item:"Other",        unit:"job", price:100.00, flat:true,  autoDetail:()=>`Trip Fee`,                               qtyLabel:null    },
-  { desc:"Concrete Drill/Prep",      item:"Other",        unit:"job", price:0.00,   flat:true,  autoDetail:()=>`Concrete Drill/Prep`,                    qtyLabel:null    },
-  { desc:"Material Cost",            item:"Materials",    unit:"job", price:0.00,   flat:false, autoDetail:()=>`Material Cost`,                          qtyLabel:"$"     },
-  { desc:"Other",                    item:"Other",        unit:"job", price:0.00,   flat:false, autoDetail:()=>``,                                       qtyLabel:"qty"   },
+  { desc:"LVP Install — Slab",        item:"LVP Install",  inputType:"quantity",     unit:"SF",  price:1.15,   priceInDescription:true,  descTemplate:"{qty} SQ FT on Slab @ {price}/SF",     multiplyByUnits:true  },
+  { desc:"LVP Install — Subfloor",    item:"LVP Install",  inputType:"quantity",     unit:"SF",  price:1.75,   priceInDescription:true,  descTemplate:"{qty} SQ FT on Subfloor @ {price}/SF", multiplyByUnits:true  },
+  { desc:"Tile — Kitchen",            item:"Tile",          inputType:"quantity",     unit:"SF",  price:10.00,  priceInDescription:false, descTemplate:"{qty} SQFT Kitchen",                    multiplyByUnits:true  },
+  { desc:"Tile — Backsplash Small",   item:"Tile",          inputType:"fixed",        unit:"job", price:50.00,  priceInDescription:false, descTemplate:"1 Small Backsplash",                    multiplyByUnits:true  },
+  { desc:"Tile — Backsplash Med",     item:"Tile",          inputType:"fixed",        unit:"job", price:75.00,  priceInDescription:false, descTemplate:"1 Medium Backsplash",                   multiplyByUnits:true  },
+  { desc:"Tile — Backsplash Large",   item:"Tile",          inputType:"fixed",        unit:"job", price:100.00, priceInDescription:false, descTemplate:"1 Large Backsplash",                    multiplyByUnits:true  },
+  { desc:"Tile — Lg + Sm Backsplash", item:"Tile",          inputType:"fixed",        unit:"job", price:150.00, priceInDescription:false, descTemplate:"1 Large, 1 Small Backsplash",           multiplyByUnits:true  },
+  { desc:"Quarter Round / Trim",      item:"Quarter Round", inputType:"quantity",     unit:"LF",  price:1.00,   priceInDescription:false, descTemplate:"{qty} Linear Feet",                     multiplyByUnits:true  },
+  { desc:"Trip Fee",                  item:"Other",         inputType:"fixed",        unit:"job", price:100.00, priceInDescription:false, descTemplate:"Trip Fee",                              multiplyByUnits:false },
+  { desc:"Concrete Drill/Prep",       item:"Other",         inputType:"fixed",        unit:"job", price:0.00,   priceInDescription:false, descTemplate:"Concrete Drill/Prep",                   multiplyByUnits:false },
+  { desc:"Materials Cost",            item:"Materials",     inputType:"manual_price", unit:"job", price:0.00,   priceInDescription:false, descTemplate:"Materials",                             multiplyByUnits:false },
 ];
 
 const INIT_ACTIVE = [
@@ -137,8 +136,8 @@ const fmt       = n => "$" + Number(n).toLocaleString("en-US",{minimumFractionDi
 const todayStr  = () => { const d=new Date(); return `${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(2)}`; };
 const nextNum   = (b,nums) => `${b.prefix}${String(nums[b.id]+1).padStart(3,"0")}`;
 const ageDays   = dateStr => { const [m,d,y]=dateStr.split("/"); const then=new Date(`20${y}`,m-1,d); return Math.floor((Date.now()-then)/(86400000)); };
-const blankItem = (pm={}) => { const p=LINE_ITEM_PRESETS[0]; return { id:Date.now()+Math.random(), desc:p.desc, item:p.item, unit:p.unit, qty:"", price:pm[p.desc]??p.price, flat:p.flat, autoDetail:p.autoDetail, qtyLabel:p.qtyLabel, priceOverridden:false, forceQty1:false }; };
-const blankCustomItem = () => ({ id:Date.now()+Math.random(), isCustom:true, desc:"", item:"Other", itemLabel:"Other", unit:"job", qty:"1", price:"0", flat:false, forceQty1:true, priceOverridden:false, qtyLabel:"QTY" });
+const blankItem = (pm={}) => { const p=LINE_ITEM_PRESETS[0]; return { id:Date.now()+Math.random(), desc:p.desc, item:p.item, unit:p.unit, qty:"", price:pm[p.desc]??p.price, inputType:p.inputType, descTemplate:p.descTemplate, multiplyByUnits:p.multiplyByUnits, priceOverridden:false, forceQty1:false }; };
+const blankCustomItem = () => ({ id:Date.now()+Math.random(), isCustom:true, desc:"", item:"Other", unit:"job", qty:"1", price:"0", inputType:"quantity", multiplyByUnits:false, priceOverridden:false });
 
 // Strip functions and File objects before writing to Firestore
 const serializeInvoice = inv => {
@@ -498,36 +497,44 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
   const mult=jobType==="duplex"?2:1;
 
   const resolveItem=i=>{
-    const preset=presets.find(p=>p.desc===i.desc);
-    const isFl=i.flat??preset?.flat??false;
-    const fq1=i.forceQty1??false;
-    const baseQty=isFl?1:parseFloat(i.qty||0);
-    const dq=fq1?1:mult;
-    const unitPrice=Math.round(baseQty*parseFloat(i.price||0));
-    const amt=Math.round(unitPrice*(fq1?1:mult));
-    const autoD=i.autoDetail||preset?.autoDetail;
-    const detail=autoD?(isFl?autoD():autoD(baseQty, parseFloat(i.price||0))):(i.isCustom?(i.desc||""):(i.detail||""));
-    const itemLabel=i.isCustom?"Other":(preset?.item||i.item||i.desc);
-    return {...i,displayQty:dq,amount:amt,detail,itemLabel,unitPrice};
+    const preset=presets.find(p=>p.desc===i.desc)||{};
+    const inputType=i.inputType||(i.flat!=null?(i.flat?"fixed":"quantity"):(preset.inputType||"quantity"));
+    const multiplyByUnits=i.forceQty1?false:(i.multiplyByUnits??preset.multiplyByUnits??true);
+    const effectivePrice=parseFloat(i.price??preset.price??0);
+    const baseQty=parseFloat(i.qty||0);
+    const effectiveMult=multiplyByUnits?mult:1;
+    let displayQty,unitPrice,amount,detail;
+    if(inputType==="quantity"){
+      displayQty=effectiveMult;
+      unitPrice=Math.round(baseQty*effectivePrice);
+      amount=Math.round(unitPrice*effectiveMult);
+      const tmpl=i.descTemplate||preset.descTemplate||"";
+      detail=tmpl.replace("{qty}",baseQty).replace("{price}","$"+effectivePrice);
+    } else if(inputType==="fixed"){
+      displayQty=effectiveMult;
+      unitPrice=Math.round(effectivePrice);
+      amount=Math.round(effectivePrice*effectiveMult);
+      detail=i.descTemplate||preset.descTemplate||i.desc||"";
+    } else if(inputType==="manual_price"){
+      displayQty=1;
+      unitPrice=Math.round(effectivePrice);
+      amount=unitPrice;
+      detail=i.descTemplate||preset.descTemplate||i.desc||"";
+    } else {
+      displayQty=1;unitPrice=0;amount=0;detail=i.desc||"";
+    }
+    if(i.isCustom)detail=i.desc||"";
+    const itemLabel=i.isCustom?"Other":(preset.item||i.item||i.desc);
+    return {...i,displayQty,unitPrice,amount,detail,itemLabel,inputType};
   };
 
   const resolvedItems=()=>{
     if(mode==="plan"&&selPlan){
-      const base=selPlan.items.map(i=>{
-        const preset=presets.find(p=>p.desc===i.desc);
-        const isFl=preset?.flat||false;
-        const fq1=i.forceQty1||false;
-        const dq=fq1?1:mult;
-        const unitPrice=Math.round(i.qty*i.price);
-        const amt=Math.round(unitPrice*(fq1?1:mult));
-        const autoD=preset?.autoDetail;
-        const detail=autoD?(isFl?autoD():autoD(i.qty, i.price)):(i.detail||"");
-        return {...i,displayQty:dq,amount:amt,unitPrice,detail,itemLabel:preset?.item||i.desc};
-      });
-      const extras=items.filter(i=>i.desc&&(i.qty||i.flat||i.isCustom)).map(resolveItem);
+      const base=selPlan.items.filter(i=>i.desc).map(resolveItem);
+      const extras=items.filter(i=>i.desc).map(resolveItem).filter(r=>r.inputType!=="quantity"||parseFloat(r.qty||0)>0||r.isCustom);
       return [...base,...extras];
     }
-    return items.filter(i=>i.desc&&(i.qty||i.flat||i.isCustom)).map(resolveItem);
+    return items.filter(i=>i.desc).map(resolveItem).filter(r=>r.inputType!=="quantity"||parseFloat(r.qty||0)>0||r.isCustom);
   };
 
   const total=Math.round(resolvedItems().reduce((s,i)=>s+i.amount,0));
@@ -535,7 +542,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
   const delItem=id=>setItems(items.filter(i=>i.id!==id));
   const updItem=(id,f,v)=>setItems(items.map(it=>{
     if(it.id!==id)return it;
-    if(f==="desc"&&!it.isCustom){const p=presets.find(p=>p.desc===v);return p?{...it,desc:v,item:p.item,unit:p.unit,price:prices[p.desc]??p.price,flat:p.flat,autoDetail:p.autoDetail,qtyLabel:p.qtyLabel,qty:"",priceOverridden:false,forceQty1:false}:it;}
+    if(f==="desc"&&!it.isCustom){const p=presets.find(p=>p.desc===v);return p?{...it,desc:v,item:p.item,unit:p.unit,price:prices[p.desc]??p.price,inputType:p.inputType||"quantity",descTemplate:p.descTemplate||"",multiplyByUnits:p.multiplyByUnits??true,qty:"",priceOverridden:false,forceQty1:false}:it;}
     if(f==="price")return{...it,price:v,priceOverridden:true};
     return{...it,[f]:v};
   }));
@@ -754,25 +761,21 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                   <div style={{marginTop:4,padding:"10px 12px",background:"#0a0c12",borderRadius:10,border:"1px solid #1c2035"}}>
                     <div style={{fontSize:10,fontWeight:700,color:"#4a5170",marginBottom:8}}>PREVIEW ({jobType==="duplex"?"×2 DUPLEX":"×1 HOUSE"})</div>
                     {selPlan.items.map((it,i)=>{
-                      const preset=presets.find(p=>p.desc===it.desc);
-                      const isFl=preset?.flat||false;
-                      const autoD=preset?.autoDetail;
-                      const detail=autoD?(isFl?autoD():autoD(it.qty, it.price)):"";
-                      const amt=Math.round(it.qty*it.price*(isFl?1:mult));
+                      const r=resolveItem(it);
                       return (
                         <div key={i} style={{padding:"5px 0",borderBottom:i<selPlan.items.length-1?"1px solid #1c2035":"none"}}>
                           <div style={{display:"flex",justifyContent:"space-between"}}>
-                            <div style={{fontSize:11,fontWeight:600,color:"#c8cce0"}}>{preset?.item||it.desc}</div>
-                            <div style={{fontSize:11,fontWeight:700,color:"#f0b429"}}>{fmt(amt)}</div>
+                            <div style={{fontSize:11,fontWeight:600,color:"#c8cce0"}}>{r.itemLabel}</div>
+                            <div style={{fontSize:11,fontWeight:700,color:"#f0b429"}}>{fmt(r.amount)}</div>
                           </div>
-                          {detail&&<div style={{fontSize:10,color:"#4a5170",marginTop:1}}>{detail} × {isFl?1:mult}</div>}
+                          {r.detail&&<div style={{fontSize:10,color:"#4a5170",marginTop:1}}>{r.detail} × {r.displayQty}</div>}
                         </div>
                       );
                     })}
                     <div style={{...S.div,marginTop:8}}/>
                     <div style={{display:"flex",justifyContent:"space-between"}}>
                       <span style={{fontSize:11,fontWeight:700,color:"#9ca3bc"}}>Plan Total</span>
-                      <span style={{fontSize:13,fontWeight:800,color:"#f0b429"}}>{fmt(Math.round(selPlan.items.reduce((s,i)=>{const p=presets.find(p=>p.desc===i.desc);return s+i.qty*i.price*(p?.flat?1:mult);},0)))}</span>
+                      <span style={{fontSize:13,fontWeight:800,color:"#f0b429"}}>{fmt(selPlan.items.reduce((s,i)=>s+resolveItem(i).amount,0))}</span>
                     </div>
                   </div>
                 )}
@@ -795,20 +798,14 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                   <span style={S.tag(mult===2?"#3b82f6":"#10b981",mult===2?"#3b82f615":"#10b98115")}>{mult===2?"DUPLEX ×2":"HOUSE ×1"}</span>
                 </div>
                 {selPlan.items.map((it,i)=>{
-                  const preset=presets.find(p=>p.desc===it.desc);
-                  const isFl=preset?.flat||false;
-                  const autoD=preset?.autoDetail;
-                  const detail=autoD?(isFl?autoD():autoD(it.qty)):"";
-                  const dq=isFl?1:mult;
-                  const amt=Math.round(it.qty*it.price*(isFl?1:mult));
-                  const unitPrice=Math.round(isFl?it.price:it.qty*it.price);
+                  const r=resolveItem(it);
                   return (
                     <div key={i} style={{padding:"6px 0",borderBottom:i<selPlan.items.length-1?"1px solid #1c2035":"none"}}>
                       <div style={{display:"flex",justifyContent:"space-between"}}>
-                        <div style={{fontSize:12,fontWeight:600,color:"#c8cce0"}}>{preset?.item||it.desc}</div>
-                        <div style={{fontSize:12,fontWeight:700,color:"#e8eaf0"}}>{fmt(amt)}</div>
+                        <div style={{fontSize:12,fontWeight:600,color:"#c8cce0"}}>{r.itemLabel}</div>
+                        <div style={{fontSize:12,fontWeight:700,color:"#e8eaf0"}}>{fmt(r.amount)}</div>
                       </div>
-                      <div style={{fontSize:10,color:"#4a5170",marginTop:2}}>{detail} · qty {dq} · {fmt(unitPrice)}/unit</div>
+                      <div style={{fontSize:10,color:"#4a5170",marginTop:2}}>{r.detail} · qty {r.displayQty} · {fmt(r.unitPrice)}/unit</div>
                     </div>
                   );
                 })}
@@ -816,41 +813,30 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
             )}
 
             {items.map(item=>{
-              const isFlatItem=item.flat??false;
+              const r=resolveItem(item);
+              const {inputType,amount}=r;
               const fq1=item.forceQty1??false;
-              const baseQty=parseFloat(item.qty||0);
-              const amount=Math.round(isFlatItem?parseFloat(item.price||0):baseQty*parseFloat(item.price||0)*(fq1?1:mult));
-              const autoDesc=(!item.isCustom&&item.autoDetail)?(isFlatItem?item.autoDetail():item.qty?item.autoDetail(item.qty, parseFloat(item.price||0)):item.autoDetail("...", parseFloat(item.price||0))):"";
+              const resetPrice=()=>{const p=presets.find(p=>p.desc===item.desc);setItems(prev=>prev.map(it=>it.id===item.id?{...it,price:prices[item.desc]??p?.price??0,priceOverridden:false}:it));};
               return (
                 <div key={item.id} style={S.card}><div style={S.cp}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
                     <div style={S.lbl}>{item.isCustom?"CUSTOM ITEM":mode==="plan"?"ONE-OFF ITEM":"LINE ITEM"}</div>
                     {(items.length>1||item.isCustom)&&<button onClick={()=>delItem(item.id)} style={{background:"none",border:"none",color:"#4a5170",fontSize:15,cursor:"pointer"}}>✕</button>}
                   </div>
-                  {item.isCustom
-                    ? <>
-                        <input value={item.desc} onChange={e=>updItem(item.id,"desc",e.target.value)} placeholder="Description (e.g. Electrical outlet repair)" style={{...S.inp,marginBottom:8}}/>
-                        <div style={{display:"flex",gap:4,marginBottom:8}}>
-                          {["SF","LF","job","hr"].map(u=>(
-                            <button key={u} onClick={()=>updItem(item.id,"unit",u)}
-                              style={{flex:1,padding:"6px 0",background:item.unit===u?"#f0b42920":"#0a0c12",border:`1px solid ${item.unit===u?"#f0b429":"#1c2035"}`,color:item.unit===u?"#f0b429":"#4a5170",borderRadius:8,fontSize:11,fontWeight:item.unit===u?700:400,cursor:"pointer"}}>
-                              {u}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    : <>
-                        <select value={item.desc} onChange={e=>updItem(item.id,"desc",e.target.value)} style={{...S.sel,marginBottom:8}}>
-                          {presets.map(p=><option key={p.desc} value={p.desc}>{p.desc}</option>)}
-                        </select>
-                        {autoDesc&&<div style={{background:"#0a0c12",border:"1px solid #1c2035",borderRadius:10,padding:"8px 12px",marginBottom:8,fontSize:12,color:"#4a5170"}}>{autoDesc}{!isFlatItem&&!fq1&&mult===2&&" (×2 duplex)"}</div>}
-                      </>
-                  }
-                  {!isFlatItem&&(
-                    <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  {item.isCustom ? (
+                    <>
+                      <input value={item.desc} onChange={e=>updItem(item.id,"desc",e.target.value)} placeholder="Description (e.g. Electrical outlet repair)" style={{...S.inp,marginBottom:8}}/>
+                      <div style={{display:"flex",gap:4,marginBottom:8}}>
+                        {["SF","LF","job","hr"].map(u=>(
+                          <button key={u} onClick={()=>updItem(item.id,"unit",u)}
+                            style={{flex:1,padding:"6px 0",background:item.unit===u?"#f0b42920":"#0a0c12",border:`1px solid ${item.unit===u?"#f0b429":"#1c2035"}`,color:item.unit===u?"#f0b429":"#4a5170",borderRadius:8,fontSize:11,fontWeight:item.unit===u?700:400,cursor:"pointer"}}>
+                            {u}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
                         <div>
-                          <div style={{...S.lbl,fontSize:9}}>{item.qtyLabel||"QTY"}</div>
+                          <div style={{...S.lbl,fontSize:9}}>{item.unit||"QTY"}</div>
                           <input type="number" value={item.qty} onChange={e=>updItem(item.id,"qty",e.target.value)} placeholder="0" style={S.inp}/>
                         </div>
                         <div>
@@ -859,39 +845,58 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                         </div>
                       </div>
                       <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        <div style={{flex:1,display:"flex",alignItems:"center",gap:6,minWidth:0}}>
-                          {item.isCustom
-                            ? <>
-                                <span style={{fontSize:11,color:"#4a5170",flexShrink:0}}>$</span>
-                                <input type="number" value={item.price} onChange={e=>updItem(item.id,"price",e.target.value)} placeholder="0.00" style={{...S.inp,flex:1,fontSize:12}}/>
-                                <span style={{fontSize:11,color:"#4a5170",flexShrink:0}}>/{item.unit}</span>
-                              </>
-                            : (!item.priceOverridden
-                                ? <>
-                                    <div style={{fontSize:11,color:"#4a5170"}}>Rate: ${item.price}/{item.unit}</div>
-                                    <button onClick={()=>updItem(item.id,"priceOverridden",true)} style={{background:"none",border:"1px solid #1c2035",color:"#9ca3bc",fontSize:11,padding:"3px 8px",borderRadius:8,cursor:"pointer"}}>Override</button>
-                                  </>
-                                : <>
-                                    <input type="number" value={item.price} onChange={e=>updItem(item.id,"price",e.target.value)} style={{...S.inp,width:80,fontSize:12}}/>
-                                    <button onClick={()=>{const p=presets.find(p=>p.desc===item.desc);setItems(prev=>prev.map(it=>it.id===item.id?{...it,price:prices[item.desc]??p?.price??0,priceOverridden:false}:it));}} style={{background:"none",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"3px 8px",borderRadius:8,cursor:"pointer"}}>Reset</button>
-                                  </>
-                              )
+                        <span style={{fontSize:11,color:"#4a5170",flexShrink:0}}>$</span>
+                        <input type="number" value={item.price} onChange={e=>updItem(item.id,"price",e.target.value)} placeholder="0.00" style={{...S.inp,flex:1,fontSize:12}}/>
+                        <span style={{fontSize:11,color:"#4a5170",flexShrink:0}}>/{item.unit}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <select value={item.desc} onChange={e=>updItem(item.id,"desc",e.target.value)} style={{...S.sel,marginBottom:8}}>
+                        {presets.map(p=><option key={p.desc} value={p.desc}>{p.desc}</option>)}
+                      </select>
+                      {r.detail&&<div style={{background:"#0a0c12",border:"1px solid #1c2035",borderRadius:10,padding:"8px 12px",marginBottom:8,fontSize:12,color:"#4a5170"}}>{r.detail}</div>}
+                      {inputType==="quantity"&&(
+                        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                            <div>
+                              <div style={{...S.lbl,fontSize:9}}>{item.unit||"QTY"}</div>
+                              <input type="number" value={item.qty} onChange={e=>updItem(item.id,"qty",e.target.value)} placeholder="0" style={S.inp}/>
+                            </div>
+                            <div>
+                              <div style={{...S.lbl,fontSize:9}}>AMOUNT</div>
+                              <div style={{...S.inp,color:"#f0b429",fontWeight:700,display:"flex",alignItems:"center"}}>{fmt(amount)}</div>
+                            </div>
+                          </div>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <div style={{flex:1,display:"flex",alignItems:"center",gap:6,minWidth:0}}>
+                              {!item.priceOverridden
+                                ? <><div style={{fontSize:11,color:"#4a5170"}}>Rate: ${item.price}/{item.unit}</div><button onClick={()=>updItem(item.id,"priceOverridden",true)} style={{background:"none",border:"1px solid #1c2035",color:"#9ca3bc",fontSize:11,padding:"3px 8px",borderRadius:8,cursor:"pointer"}}>Override</button></>
+                                : <><input type="number" value={item.price} onChange={e=>updItem(item.id,"price",e.target.value)} style={{...S.inp,width:80,fontSize:12}}/><button onClick={resetPrice} style={{background:"none",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"3px 8px",borderRadius:8,cursor:"pointer"}}>Reset</button></>
+                              }
+                            </div>
+                            <button onClick={()=>updItem(item.id,"forceQty1",!fq1)}
+                              style={{flexShrink:0,background:fq1?"#f0b42920":"none",border:`1px solid ${fq1?"#f0b429":"#1c2035"}`,color:fq1?"#f0b429":"#4a5170",borderRadius:8,padding:"3px 8px",fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>
+                              🔒 ×1 only
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {inputType==="fixed"&&(
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0"}}>
+                          {!item.priceOverridden
+                            ? <><div style={{fontSize:14,fontWeight:700,color:"#f0b429"}}>{fmt(amount)}</div><button onClick={()=>updItem(item.id,"priceOverridden",true)} style={{background:"none",border:"1px solid #1c2035",color:"#9ca3bc",fontSize:11,padding:"3px 10px",borderRadius:8,cursor:"pointer"}}>Override</button></>
+                            : <><input type="number" value={item.price} onChange={e=>updItem(item.id,"price",e.target.value)} style={{...S.inp,width:90,fontSize:12}}/><button onClick={resetPrice} style={{background:"none",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"3px 8px",borderRadius:8,cursor:"pointer"}}>Reset</button></>
                           }
                         </div>
-                        <button onClick={()=>updItem(item.id,"forceQty1",!fq1)}
-                          style={{flexShrink:0,background:fq1?"#f0b42920":"none",border:`1px solid ${fq1?"#f0b429":"#1c2035"}`,color:fq1?"#f0b429":"#4a5170",borderRadius:8,padding:"3px 8px",fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>
-                          🔒 ×1 only
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {isFlatItem&&(
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0"}}>
-                      {!item.priceOverridden
-                        ?<><div style={{fontSize:14,fontWeight:700,color:"#f0b429"}}>{fmt(item.price)}</div><button onClick={()=>updItem(item.id,"price",item.price)} style={{background:"none",border:"1px solid #1c2035",color:"#9ca3bc",fontSize:11,padding:"3px 10px",borderRadius:8,cursor:"pointer"}}>Override</button></>
-                        :<><input type="number" value={item.price} onChange={e=>updItem(item.id,"price",e.target.value)} style={{...S.inp,width:90,fontSize:12}}/><button onClick={()=>{const p=presets.find(p=>p.desc===item.desc);setItems(prev=>prev.map(it=>it.id===item.id?{...it,price:prices[item.desc]??p?.price??0,priceOverridden:false}:it));}} style={{background:"none",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"3px 8px",borderRadius:8,cursor:"pointer"}}>Reset</button></>
-                      }
-                    </div>
+                      )}
+                      {inputType==="manual_price"&&(
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <span style={{fontSize:11,color:"#4a5170"}}>$</span>
+                          <input type="number" value={item.price} onChange={e=>updItem(item.id,"price",e.target.value)} placeholder="0.00" style={{...S.inp,flex:1}}/>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div></div>
               );
@@ -1853,19 +1858,19 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
   const [copyFromId,setCopyFromId]=useState("");
   const [copySelIds,setCopySelIds]=useState(new Set());
   const [editingPreset,setEditingPreset]=useState(null);
-  const [presetForm,setPresetForm]=useState({desc:"",item:"",unit:"job",price:0,flat:false,autoDetailTemplate:"",qtyLabel:"qty"});
+  const [presetForm,setPresetForm]=useState({desc:"",item:"",unit:"job",price:0,inputType:"quantity",descTemplate:"",multiplyByUnits:true,priceInDescription:false});
 
   const selBuilder=builders.find(b=>b.id===selBId);
 
-  const addPI=()=>setPlanItems([...planItems,{desc:presets[0].desc,unit:presets[0].unit,qty:"",price:presets[0].price}]);
+  const addPI=()=>setPlanItems([...planItems,{desc:presets[0].desc,unit:presets[0].unit,qty:"",price:presets[0].price,inputType:presets[0].inputType||"quantity"}]);
   const updPI=(idx,f,v)=>{
     const u=[...planItems];
     if(f==="isCustom"){
-      if(v) u[idx]={...u[idx],isCustom:true,desc:"",unit:"job"};
-      else { const p=presets[0]; u[idx]={...u[idx],isCustom:false,desc:p.desc,unit:p.unit,price:p.price}; }
+      if(v) u[idx]={...u[idx],isCustom:true,desc:"",unit:"job",inputType:"quantity"};
+      else { const p=presets[0]; u[idx]={...u[idx],isCustom:false,desc:p.desc,unit:p.unit,price:p.price,inputType:p.inputType||"quantity"}; }
     } else if(f==="desc"&&!u[idx].isCustom){
       const p=presets.find(p=>p.desc===v);
-      u[idx]={...u[idx],desc:v,unit:p?.unit||"job",price:p?.price??0};
+      u[idx]={...u[idx],desc:v,unit:p?.unit||"job",price:p?.price??0,inputType:p?.inputType||"quantity"};
     } else {
       u[idx]={...u[idx],[f]:v};
     }
@@ -1873,10 +1878,10 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
   };
   const delPI=idx=>setPlanItems(planItems.filter((_,i)=>i!==idx));
 
-  const openAdd=()=>{setPlanName("");setPlanType("duplex");setPlanItems([{desc:LINE_ITEM_PRESETS[0].desc,unit:LINE_ITEM_PRESETS[0].unit,qty:"",price:LINE_ITEM_PRESETS[0].price}]);setEditPlan(null);setView("editPlan");};
+  const openAdd=()=>{setPlanName("");setPlanType("duplex");const p0=presets[0]||LINE_ITEM_PRESETS[0];setPlanItems([{desc:p0.desc,unit:p0.unit,qty:"",price:p0.price,inputType:p0.inputType||"quantity"}]);setEditPlan(null);setView("editPlan");};
   const openEdit=p=>{setPlanName(p.name);setPlanType(p.type);setPlanItems(p.items.map(i=>({...i,qty:String(i.qty)})));setEditPlan(p);setView("editPlan");};
   const savePlan=()=>{
-    const items=planItems.filter(i=>i.desc&&i.qty).map(i=>({...i,qty:parseFloat(i.qty)}));
+    const items=planItems.filter(i=>i.desc&&((i.inputType||"quantity")!=="quantity"||i.qty)).map(i=>({...i,qty:parseFloat(i.qty||0)}));
     if(!planName||items.length===0)return;
     setFloorPlans(prev=>{
       const curr=[...(prev[selBId]||[])];
@@ -1987,7 +1992,7 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
               {builders.filter(b=>b.id!==selBId).some(b=>(floorPlans[b.id]||[]).length>0)&&(
                 <button onClick={()=>{setCopyFromId("");setCopySelIds(new Set());setShowCopyModal(true);}} style={{background:"#1c2035",border:"1px solid #2a3050",color:"#9ca3bc",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Copy from Builder</button>
               )}
-              <button onClick={()=>{setPlanName("");setPlanType("duplex");setPlanItems([{desc:presets[0].desc,unit:presets[0].unit,qty:"",price:presets[0].price}]);setEditPlan(null);setView("editPlan");}} style={{background:"#f0b42918",border:"1px solid #f0b42930",color:"#f0b429",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Add Plan</button>
+              <button onClick={()=>{setPlanName("");setPlanType("duplex");setPlanItems([{desc:presets[0].desc,unit:presets[0].unit,qty:"",price:presets[0].price,inputType:presets[0].inputType||"quantity"}]);setEditPlan(null);setView("editPlan");}} style={{background:"#f0b42918",border:"1px solid #f0b42930",color:"#f0b429",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Add Plan</button>
             </div>
           </div>
           {plans.length===0&&<div style={{textAlign:"center",padding:"20px 0",color:"#4a5170",fontSize:13}}>No floor plans yet</div>}
@@ -2054,14 +2059,14 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
                 </>
               : <select value={item.desc} onChange={e=>updPI(idx,"desc",e.target.value)} style={{...S.sel,marginBottom:8}}>{presets.map(p=><option key={p.desc} value={p.desc}>{p.desc}</option>)}</select>
             }
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              <div><div style={{...S.lbl,fontSize:9}}>QTY PER UNIT</div><input type="number" value={item.qty} onChange={e=>updPI(idx,"qty",e.target.value)} placeholder="0" style={S.inp}/></div>
+            <div style={{display:"grid",gridTemplateColumns:`${(item.inputType||"quantity")==="quantity"?"1fr ":""}1fr`,gap:8}}>
+              {(item.inputType||"quantity")==="quantity"&&<div><div style={{...S.lbl,fontSize:9}}>QTY PER UNIT</div><input type="number" value={item.qty} onChange={e=>updPI(idx,"qty",e.target.value)} placeholder="0" style={S.inp}/></div>}
               <div><div style={{...S.lbl,fontSize:9}}>PRICE ($)</div><input type="number" value={item.price} onChange={e=>updPI(idx,"price",e.target.value)} style={S.inp}/></div>
             </div>
           </div></div>
         ))}
         <button onClick={addPI} style={{width:"100%",padding:12,background:"none",color:"#f0b429",borderRadius:12,border:"1px dashed #f0b42944",fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:12}}>+ Add Item</button>
-        <button onClick={savePlan} style={{...S.btnP,opacity:planName&&planItems.some(i=>i.qty)?1:0.35}}>Save Floor Plan</button>
+        <button onClick={savePlan} style={{...S.btnP,opacity:planName&&planItems.some(i=>i.qty||(i.inputType||"quantity")!=="quantity")?1:0.35}}>Save Floor Plan</button>
       </div>
     </div>
   );
@@ -2106,17 +2111,17 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
               <div style={{flex:1}}>
                 <div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>{p.desc}</div>
-                <div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{p.item} · {p.flat?"Flat fee":"Per "+p.unit} · ${p.price}</div>
-                {p.autoDetailTemplate&&<div style={{fontSize:10,color:"#4a5170",marginTop:2,fontStyle:"italic"}}>"{p.autoDetailTemplate}"</div>}
+                <div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{p.item} · {p.inputType||"quantity"} · ${p.price}</div>
+                {p.descTemplate&&<div style={{fontSize:10,color:"#4a5170",marginTop:2,fontStyle:"italic"}}>"{p.descTemplate}"</div>}
               </div>
               <div style={{display:"flex",gap:6,marginLeft:10}}>
-                <button onClick={()=>{setEditingPreset(p);setPresetForm({desc:p.desc,item:p.item||"",unit:p.unit||"job",price:p.price||0,flat:p.flat||false,autoDetailTemplate:p.autoDetailTemplate||"",qtyLabel:p.qtyLabel||"qty"});setView("editPreset");}} style={{background:"#1c2035",border:"none",color:"#9ca3bc",fontSize:11,padding:"5px 10px",borderRadius:8,cursor:"pointer"}}>Edit</button>
+                <button onClick={()=>{setEditingPreset(p);setPresetForm({desc:p.desc,item:p.item||"",unit:p.unit||"job",price:p.price||0,inputType:p.inputType||"quantity",descTemplate:p.descTemplate||"",multiplyByUnits:p.multiplyByUnits??true,priceInDescription:p.priceInDescription||false});setView("editPreset");}} style={{background:"#1c2035",border:"none",color:"#9ca3bc",fontSize:11,padding:"5px 10px",borderRadius:8,cursor:"pointer"}}>Edit</button>
                 <button onClick={()=>deleteCustomPreset&&deleteCustomPreset(p.id)} style={{background:"#ef444418",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"5px 10px",borderRadius:8,cursor:"pointer"}}>Delete</button>
               </div>
             </div>
           </div></div>
         ))}
-        <button onClick={()=>{setEditingPreset(null);setPresetForm({desc:"",item:"",unit:"job",price:0,flat:false,autoDetailTemplate:"",qtyLabel:"qty"});setView("editPreset");}} style={{...S.btnS,marginTop:8}}>+ Add Preset</button>
+        <button onClick={()=>{setEditingPreset(null);setPresetForm({desc:"",item:"",unit:"job",price:0,inputType:"quantity",descTemplate:"",multiplyByUnits:true,priceInDescription:false});setView("editPreset");}} style={{...S.btnS,marginTop:8}}>+ Add Preset</button>
       </div>
     </div>
   );
@@ -2146,20 +2151,31 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
           <input type="number" value={presetForm.price} onChange={e=>setPresetForm(prev=>({...prev,price:parseFloat(e.target.value)||0}))} style={S.inp}/>
         </div></div>
         <div style={S.card}><div style={S.cp}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div>
-              <div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>Flat Fee</div>
-              <div style={{fontSize:11,color:"#4a5170",marginTop:2}}>Fixed price — no qty input on invoice</div>
-            </div>
-            <div onClick={()=>setPresetForm(prev=>({...prev,flat:!prev.flat}))} style={{width:44,height:24,borderRadius:12,background:presetForm.flat?"#f0b429":"#1c2035",cursor:"pointer",display:"flex",alignItems:"center",padding:"0 3px"}}>
-              <div style={{width:18,height:18,borderRadius:"50%",background:"#fff",transform:presetForm.flat?"translateX(20px)":"translateX(0)",transition:"transform 0.2s"}}/>
-            </div>
+          <div style={S.lbl}>INPUT TYPE</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {[["quantity","Quantity","User enters qty — amount = qty × price × units"],["fixed","Fixed","Set price per unit, no qty input"],["manual_price","Manual Price","User types the dollar amount directly"]].map(([t,label,sub])=>(
+              <div key={t} onClick={()=>setPresetForm(prev=>({...prev,inputType:t}))} style={{padding:"10px 12px",borderRadius:10,border:`1px solid ${presetForm.inputType===t?"#f0b429":"#1c2035"}`,background:presetForm.inputType===t?"#f0b42912":"#0a0c12",cursor:"pointer"}}>
+                <div style={{fontSize:12,fontWeight:600,color:presetForm.inputType===t?"#f0b429":"#9ca3bc"}}>{label}</div>
+                <div style={{fontSize:10,color:"#4a5170",marginTop:2}}>{sub}</div>
+              </div>
+            ))}
           </div>
         </div></div>
         <div style={S.card}><div style={S.cp}>
-          <div style={S.lbl}>AUTO-DESCRIPTION TEMPLATE (optional)</div>
-          <input value={presetForm.autoDetailTemplate} onChange={e=>setPresetForm(prev=>({...prev,autoDetailTemplate:e.target.value}))} placeholder='e.g. "Tile over {qty} showers"' style={S.inp}/>
-          <div style={{fontSize:10,color:"#4a5170",marginTop:6}}>Use {"{qty}"} to insert the quantity. Leave blank to use the description as-is.</div>
+          <div style={S.lbl}>DESCRIPTION TEMPLATE (optional)</div>
+          <input value={presetForm.descTemplate} onChange={e=>setPresetForm(prev=>({...prev,descTemplate:e.target.value}))} placeholder='e.g. "{qty} SQ FT on Slab @ {price}/SF"' style={S.inp}/>
+          <div style={{fontSize:10,color:"#4a5170",marginTop:6}}>Use {"{qty}"} for quantity, {"{price}"} for rate. Leave blank to use description as-is.</div>
+        </div></div>
+        <div style={S.card}><div style={S.cp}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>Multiply by units</div>
+              <div style={{fontSize:11,color:"#4a5170",marginTop:2}}>Double amount for duplex jobs</div>
+            </div>
+            <div onClick={()=>setPresetForm(prev=>({...prev,multiplyByUnits:!prev.multiplyByUnits}))} style={{width:44,height:24,borderRadius:12,background:presetForm.multiplyByUnits?"#f0b429":"#1c2035",cursor:"pointer",display:"flex",alignItems:"center",padding:"0 3px"}}>
+              <div style={{width:18,height:18,borderRadius:"50%",background:"#fff",transform:presetForm.multiplyByUnits?"translateX(20px)":"translateX(0)",transition:"transform 0.2s"}}/>
+            </div>
+          </div>
         </div></div>
         <button onClick={async()=>{
           if(!presetForm.desc||!presetForm.item)return;
@@ -2177,10 +2193,10 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
     <div style={{paddingBottom:16}}>
       <div style={S.hdr}><button style={S.btnBk} onClick={()=>setView("main")}>← Back</button><div style={S.eye}>SETTINGS</div><div style={S.ttl}>Default Prices</div><div style={{fontSize:12,color:"#4a5170",marginTop:4}}>Applies to new invoices</div></div>
       <div style={{padding:"0 16px"}}>
-        {LINE_ITEM_PRESETS.map(p=>(
+        {presets.map(p=>(
           <div key={p.desc} style={S.card}><div style={S.cp}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div><div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>{p.desc}</div><div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{p.flat?"Flat fee":"Per "+p.unit}</div></div>
+              <div><div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>{p.desc}</div><div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{p.inputType||"quantity"} · {p.unit}</div></div>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
                 <span style={{fontSize:11,color:"#4a5170"}}>$</span>
                 <input type="number" value={prices[p.desc]??p.price} onChange={e=>setPrices(prev=>({...prev,[p.desc]:parseFloat(e.target.value)||0}))} style={{...S.inp,width:80,textAlign:"right"}}/>
@@ -2323,28 +2339,14 @@ export default function App() {
       const presetsSnap = await getDocs(collection(db,"lineItemPresets"));
       const hasBuiltIns = presetsSnap.docs.some(d => d.data().isBuiltIn);
       if (!hasBuiltIns) {
-        const BUILT_IN_TEMPLATES = [
-          "{qty} SQ FT on Slab @ {price}/SF",
-          "{qty} SQ FT on Subfloor @ {price}/SF",
-          "{qty} SQFT Kitchen",
-          "{qty} Small Backsplash",
-          "{qty} Medium Backsplash",
-          "{qty} Large Backsplash",
-          "{qty} Large, {qty} Small Backsplash",
-          "{qty} Linear Feet",
-          "Trip Fee",
-          "Concrete Drill/Prep",
-          "Material Cost",
-          "",
-        ];
         const builtIns = LINE_ITEM_PRESETS.map((p,i)=>({
           id:`bi_${i}`, desc:p.desc, item:p.item, unit:p.unit, price:p.price,
-          flat:p.flat, autoDetailTemplate:BUILT_IN_TEMPLATES[i], qtyLabel:p.qtyLabel||null,
-          isBuiltIn:true, order:i,
+          inputType:p.inputType, descTemplate:p.descTemplate, multiplyByUnits:p.multiplyByUnits,
+          priceInDescription:p.priceInDescription, isBuiltIn:true, order:i,
         }));
         const customDefaults = presetsSnap.empty ? [
-          {id:"cp_tile_2shower", desc:"Tile Over 2 Showers", item:"Tile", unit:"job", price:350, flat:false, autoDetailTemplate:"Tile over {qty} showers", qtyLabel:"qty", isBuiltIn:false, order:12},
-          {id:"cp_tile_1shower", desc:"Tile Over 1 Shower",  item:"Tile", unit:"job", price:175, flat:false, autoDetailTemplate:"Tile over 1 shower",      qtyLabel:"qty", isBuiltIn:false, order:13},
+          {id:"cp_tile_2shower", desc:"Tile Over 2 Showers", item:"Tile", unit:"job", price:350, inputType:"quantity", descTemplate:"Tile over {qty} showers", multiplyByUnits:true, priceInDescription:false, isBuiltIn:false, order:11},
+          {id:"cp_tile_1shower", desc:"Tile Over 1 Shower",  item:"Tile", unit:"job", price:175, inputType:"quantity", descTemplate:"Tile over 1 shower",      multiplyByUnits:true, priceInDescription:false, isBuiltIn:false, order:12},
         ] : [];
         const toSeed = [...builtIns, ...customDefaults];
         await Promise.all(toSeed.map(p => setDoc(doc(db,"lineItemPresets",p.id), p)));
@@ -2516,15 +2518,15 @@ export default function App() {
   const allPresets = useMemo(()=>
     [...customPresets].sort((a,b)=>(a.order??999)-(b.order??999)).map(p=>({
       ...p,
-      autoDetail: p.flat
-        ? ()=>(p.autoDetailTemplate||p.desc)
-        : (qty, price)=>(p.autoDetailTemplate||p.desc).replace("{qty}",qty).replace("{price}","$"+(price??p.price)),
+      inputType: p.inputType||(p.flat?"fixed":(p.desc?.includes("Material")?"manual_price":"quantity")),
+      descTemplate: p.descTemplate||p.autoDetailTemplate||"",
+      multiplyByUnits: p.multiplyByUnits??true,
     }))
   ,[customPresets]);
 
   const saveCustomPreset = async (preset) => {
     const id = preset.id||("cp_"+Date.now());
-    const data = {id, desc:preset.desc, item:preset.item||"Other", unit:preset.unit||"job", price:parseFloat(preset.price)||0, flat:preset.flat||false, autoDetailTemplate:preset.autoDetailTemplate||"", qtyLabel:preset.qtyLabel||"qty", isBuiltIn:preset.isBuiltIn||false, order:preset.order??999};
+    const data = {id, desc:preset.desc, item:preset.item||"Other", unit:preset.unit||"job", price:parseFloat(preset.price)||0, inputType:preset.inputType||"quantity", descTemplate:preset.descTemplate||"", multiplyByUnits:preset.multiplyByUnits??true, priceInDescription:preset.priceInDescription||false, isBuiltIn:preset.isBuiltIn||false, order:preset.order??999};
     await setDoc(doc(db,"lineItemPresets",id), data);
     setCustomPresets(prev=>{const idx=prev.findIndex(p=>p.id===id);if(idx>-1){const n=[...prev];n[idx]=data;return n;}return [...prev,data];});
   };
