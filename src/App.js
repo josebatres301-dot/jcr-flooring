@@ -137,7 +137,8 @@ const fmt       = n => "$" + Number(n).toLocaleString("en-US",{minimumFractionDi
 const todayStr  = () => { const d=new Date(); return `${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(2)}`; };
 const nextNum   = (b,nums) => `${b.prefix}${String(nums[b.id]+1).padStart(3,"0")}`;
 const ageDays   = dateStr => { const [m,d,y]=dateStr.split("/"); const then=new Date(`20${y}`,m-1,d); return Math.floor((Date.now()-then)/(86400000)); };
-const blankItem = (pm={}) => { const p=LINE_ITEM_PRESETS[0]; return { id:Date.now()+Math.random(), desc:p.desc, item:p.item, unit:p.unit, qty:"", price:pm[p.desc]??p.price, flat:p.flat, autoDetail:p.autoDetail, qtyLabel:p.qtyLabel, priceOverridden:false }; };
+const blankItem = (pm={}) => { const p=LINE_ITEM_PRESETS[0]; return { id:Date.now()+Math.random(), desc:p.desc, item:p.item, unit:p.unit, qty:"", price:pm[p.desc]??p.price, flat:p.flat, autoDetail:p.autoDetail, qtyLabel:p.qtyLabel, priceOverridden:false, forceQty1:false }; };
+const blankCustomItem = () => ({ id:Date.now()+Math.random(), isCustom:true, desc:"", item:"Other", itemLabel:"Other", unit:"job", qty:"1", price:"0", flat:false, forceQty1:true, priceOverridden:false, qtyLabel:"QTY" });
 
 // Strip functions and File objects before writing to Firestore
 const serializeInvoice = inv => {
@@ -499,13 +500,14 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
   const resolveItem=i=>{
     const preset=LINE_ITEM_PRESETS.find(p=>p.desc===i.desc);
     const isFl=i.flat??preset?.flat??false;
+    const fq1=i.forceQty1??false;
     const baseQty=isFl?1:parseFloat(i.qty||0);
-    const dq=isFl?1:mult;
-    const amt=Math.round(baseQty*parseFloat(i.price||0)*(isFl?1:mult));
+    const dq=(isFl||fq1)?1:mult;
+    const amt=Math.round(baseQty*parseFloat(i.price||0)*(isFl||fq1?1:mult));
     const autoD=i.autoDetail||preset?.autoDetail;
     const detail=autoD?(isFl?autoD():autoD(baseQty)):(i.detail||"");
     const unitPrice=Math.round(isFl?parseFloat(i.price||0):baseQty*parseFloat(i.price||0));
-    const itemLabel=preset?.item||i.item||i.desc;
+    const itemLabel=i.isCustom?"Other":(preset?.item||i.item||i.desc);
     return {...i,displayQty:dq,amount:amt,detail,itemLabel,unitPrice};
   };
 
@@ -521,10 +523,10 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
         const detail=autoD?(isFl?autoD():autoD(i.qty)):(i.detail||"");
         return {...i,displayQty:dq,amount:amt,unitPrice,detail,itemLabel:preset?.item||i.desc};
       });
-      const extras=items.filter(i=>i.desc&&(i.qty||i.flat)).map(resolveItem);
+      const extras=items.filter(i=>i.desc&&(i.qty||i.flat||i.isCustom)).map(resolveItem);
       return [...base,...extras];
     }
-    return items.filter(i=>i.desc&&(i.qty||i.flat)).map(resolveItem);
+    return items.filter(i=>i.desc&&(i.qty||i.flat||i.isCustom)).map(resolveItem);
   };
 
   const total=Math.round(resolvedItems().reduce((s,i)=>s+i.amount,0));
@@ -532,7 +534,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
   const delItem=id=>setItems(items.filter(i=>i.id!==id));
   const updItem=(id,f,v)=>setItems(items.map(it=>{
     if(it.id!==id)return it;
-    if(f==="desc"){const p=LINE_ITEM_PRESETS.find(p=>p.desc===v);return p?{...it,desc:v,item:p.item,unit:p.unit,price:prices[p.desc]??p.price,flat:p.flat,autoDetail:p.autoDetail,qtyLabel:p.qtyLabel,qty:"",priceOverridden:false}:it;}
+    if(f==="desc"&&!it.isCustom){const p=LINE_ITEM_PRESETS.find(p=>p.desc===v);return p?{...it,desc:v,item:p.item,unit:p.unit,price:prices[p.desc]??p.price,flat:p.flat,autoDetail:p.autoDetail,qtyLabel:p.qtyLabel,qty:"",priceOverridden:false,forceQty1:false}:it;}
     if(f==="price")return{...it,price:v,priceOverridden:true};
     return{...it,[f]:v};
   }));
@@ -814,19 +816,35 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
 
             {items.map(item=>{
               const isFlatItem=item.flat??false;
+              const fq1=item.forceQty1??false;
               const baseQty=parseFloat(item.qty||0);
-              const amount=Math.round(isFlatItem?parseFloat(item.price||0):baseQty*parseFloat(item.price||0)*mult);
-              const autoDesc=item.autoDetail?(isFlatItem?item.autoDetail():item.qty?item.autoDetail(item.qty):item.autoDetail("...")):"";
+              const amount=Math.round(isFlatItem?parseFloat(item.price||0):baseQty*parseFloat(item.price||0)*(fq1?1:mult));
+              const autoDesc=(!item.isCustom&&item.autoDetail)?(isFlatItem?item.autoDetail():item.qty?item.autoDetail(item.qty):item.autoDetail("...")):"";
               return (
                 <div key={item.id} style={S.card}><div style={S.cp}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                    <div style={S.lbl}>{mode==="plan"?"ONE-OFF ITEM":"LINE ITEM"}</div>
+                    <div style={S.lbl}>{item.isCustom?"CUSTOM ITEM":mode==="plan"?"ONE-OFF ITEM":"LINE ITEM"}</div>
                     {items.length>1&&<button onClick={()=>delItem(item.id)} style={{background:"none",border:"none",color:"#4a5170",fontSize:15,cursor:"pointer"}}>✕</button>}
                   </div>
-                  <select value={item.desc} onChange={e=>updItem(item.id,"desc",e.target.value)} style={{...S.sel,marginBottom:8}}>
-                    {LINE_ITEM_PRESETS.map(p=><option key={p.desc} value={p.desc}>{p.desc}</option>)}
-                  </select>
-                  {autoDesc&&<div style={{background:"#0a0c12",border:"1px solid #1c2035",borderRadius:10,padding:"8px 12px",marginBottom:8,fontSize:12,color:"#4a5170"}}>{autoDesc}{!isFlatItem&&mult===2&&" (×2 duplex)"}</div>}
+                  {item.isCustom
+                    ? <>
+                        <input value={item.desc} onChange={e=>updItem(item.id,"desc",e.target.value)} placeholder="Description (e.g. Electrical outlet repair)" style={{...S.inp,marginBottom:8}}/>
+                        <div style={{display:"flex",gap:4,marginBottom:8}}>
+                          {["SF","LF","job","hr"].map(u=>(
+                            <button key={u} onClick={()=>updItem(item.id,"unit",u)}
+                              style={{flex:1,padding:"6px 0",background:item.unit===u?"#f0b42920":"#0a0c12",border:`1px solid ${item.unit===u?"#f0b429":"#1c2035"}`,color:item.unit===u?"#f0b429":"#4a5170",borderRadius:8,fontSize:11,fontWeight:item.unit===u?700:400,cursor:"pointer"}}>
+                              {u}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    : <>
+                        <select value={item.desc} onChange={e=>updItem(item.id,"desc",e.target.value)} style={{...S.sel,marginBottom:8}}>
+                          {LINE_ITEM_PRESETS.map(p=><option key={p.desc} value={p.desc}>{p.desc}</option>)}
+                        </select>
+                        {autoDesc&&<div style={{background:"#0a0c12",border:"1px solid #1c2035",borderRadius:10,padding:"8px 12px",marginBottom:8,fontSize:12,color:"#4a5170"}}>{autoDesc}{!isFlatItem&&!fq1&&mult===2&&" (×2 duplex)"}</div>}
+                      </>
+                  }
                   {!isFlatItem&&(
                     <div style={{display:"flex",flexDirection:"column",gap:8}}>
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
@@ -839,15 +857,30 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                           <div style={{...S.inp,color:"#f0b429",fontWeight:700,display:"flex",alignItems:"center"}}>{fmt(amount)}</div>
                         </div>
                       </div>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <div style={{fontSize:11,color:"#4a5170"}}>Rate: ${item.price}/{item.unit}</div>
-                        {!item.priceOverridden
-                          ?<button onClick={()=>updItem(item.id,"priceOverridden",true)} style={{background:"none",border:"1px solid #1c2035",color:"#9ca3bc",fontSize:11,padding:"3px 10px",borderRadius:8,cursor:"pointer"}}>Override Rate</button>
-                          :<div style={{display:"flex",gap:6,alignItems:"center"}}>
-                            <input type="number" value={item.price} onChange={e=>updItem(item.id,"price",e.target.value)} style={{...S.inp,width:80,fontSize:12}}/>
-                            <button onClick={()=>{const p=LINE_ITEM_PRESETS.find(p=>p.desc===item.desc);setItems(prev=>prev.map(it=>it.id===item.id?{...it,price:prices[item.desc]??p?.price??0,priceOverridden:false}:it));}} style={{background:"none",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"3px 8px",borderRadius:8,cursor:"pointer"}}>Reset</button>
-                          </div>
-                        }
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <div style={{flex:1,display:"flex",alignItems:"center",gap:6,minWidth:0}}>
+                          {item.isCustom
+                            ? <>
+                                <span style={{fontSize:11,color:"#4a5170",flexShrink:0}}>$</span>
+                                <input type="number" value={item.price} onChange={e=>updItem(item.id,"price",e.target.value)} placeholder="0.00" style={{...S.inp,flex:1,fontSize:12}}/>
+                                <span style={{fontSize:11,color:"#4a5170",flexShrink:0}}>/{item.unit}</span>
+                              </>
+                            : (!item.priceOverridden
+                                ? <>
+                                    <div style={{fontSize:11,color:"#4a5170"}}>Rate: ${item.price}/{item.unit}</div>
+                                    <button onClick={()=>updItem(item.id,"priceOverridden",true)} style={{background:"none",border:"1px solid #1c2035",color:"#9ca3bc",fontSize:11,padding:"3px 8px",borderRadius:8,cursor:"pointer"}}>Override</button>
+                                  </>
+                                : <>
+                                    <input type="number" value={item.price} onChange={e=>updItem(item.id,"price",e.target.value)} style={{...S.inp,width:80,fontSize:12}}/>
+                                    <button onClick={()=>{const p=LINE_ITEM_PRESETS.find(p=>p.desc===item.desc);setItems(prev=>prev.map(it=>it.id===item.id?{...it,price:prices[item.desc]??p?.price??0,priceOverridden:false}:it));}} style={{background:"none",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"3px 8px",borderRadius:8,cursor:"pointer"}}>Reset</button>
+                                  </>
+                              )
+                          }
+                        </div>
+                        <button onClick={()=>updItem(item.id,"forceQty1",!fq1)}
+                          style={{flexShrink:0,background:fq1?"#f0b42920":"none",border:`1px solid ${fq1?"#f0b429":"#1c2035"}`,color:fq1?"#f0b429":"#4a5170",borderRadius:8,padding:"3px 8px",fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>
+                          🔒 ×1 only
+                        </button>
                       </div>
                     </div>
                   )}
@@ -863,8 +896,11 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
               );
             })}
 
-            <button onClick={addItem} style={{width:"100%",padding:13,background:"none",color:"#f0b429",borderRadius:12,border:"1px dashed #f0b42944",fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:12}}>
+            <button onClick={addItem} style={{width:"100%",padding:13,background:"none",color:"#f0b429",borderRadius:12,border:"1px dashed #f0b42944",fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:6}}>
               + Add {mode==="plan"?"One-Off":"Line"} Item
+            </button>
+            <button onClick={()=>setItems(prev=>[...prev,blankCustomItem()])} style={{width:"100%",padding:11,background:"none",color:"#9ca3bc",borderRadius:12,border:"1px dashed #1c203588",fontSize:12,fontWeight:600,cursor:"pointer",marginBottom:12}}>
+              + Add Custom Item
             </button>
 
             <div style={S.card}><div style={S.cp}>
@@ -1797,7 +1833,7 @@ function BuilderForm({isEdit, selBId, builders, setBuilders, setBuilderNums, set
 
 // ─── SETTINGS SCREEN ──────────────────────────────────────────────────────────
 
-function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNums,setBuilderNums,prices,setPrices,onDeleteBuilder}) {
+function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNums,setBuilderNums,prices,setPrices,onDeleteBuilder,toast}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
   const isDesktop = w >= 1024;
@@ -1808,6 +1844,9 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
   const [planType,setPlanType]=useState("duplex");
   const [planItems,setPlanItems]=useState([]);
   const [confirmDeleteBuilder,setConfirmDeleteBuilder]=useState(false);
+  const [showCopyModal,setShowCopyModal]=useState(false);
+  const [copyFromId,setCopyFromId]=useState("");
+  const [copySelIds,setCopySelIds]=useState(new Set());
 
   const selBuilder=builders.find(b=>b.id===selBId);
 
@@ -1867,9 +1906,70 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
           </div></div>
           <button onClick={()=>setView("editBuilder")} style={{...S.btnS,marginBottom:20}}>Edit Builder Info</button>
 
+          {showCopyModal&&(
+            <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:200,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={e=>{if(e.target===e.currentTarget){setShowCopyModal(false);setCopyFromId("");setCopySelIds(new Set());}}}>
+              <div style={{background:"#0f1117",borderRadius:"16px 16px 0 0",padding:20,width:"100%",maxWidth:480,maxHeight:"80vh",overflowY:"auto"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                  <div style={{fontSize:14,fontWeight:700,color:"#e8eaf0"}}>Copy Floor Plan</div>
+                  <button onClick={()=>{setShowCopyModal(false);setCopyFromId("");setCopySelIds(new Set());}} style={{background:"none",border:"none",color:"#4a5170",fontSize:18,cursor:"pointer"}}>✕</button>
+                </div>
+                <div style={{...S.lbl,marginBottom:6}}>COPY FROM</div>
+                <select value={copyFromId} onChange={e=>{setCopyFromId(e.target.value);setCopySelIds(new Set());}} style={{...S.sel,marginBottom:16}}>
+                  <option value="">Select a builder...</option>
+                  {builders.filter(b=>b.id!==selBId).map(b=>(
+                    <option key={b.id} value={b.id}>{b.name} ({(floorPlans[b.id]||[]).length} plans)</option>
+                  ))}
+                </select>
+                {copyFromId&&(
+                  <>
+                    <div style={{...S.lbl,marginBottom:8}}>SELECT PLANS TO COPY</div>
+                    {(floorPlans[copyFromId]||[]).length===0
+                      ? <div style={{fontSize:13,color:"#4a5170",textAlign:"center",padding:"16px 0"}}>No floor plans for this builder</div>
+                      : (floorPlans[copyFromId]||[]).map(p=>{
+                          const sel=copySelIds.has(p.id);
+                          return (
+                            <div key={p.id} onClick={()=>{const s=new Set(copySelIds);sel?s.delete(p.id):s.add(p.id);setCopySelIds(s);}}
+                              style={{...S.card,border:`1px solid ${sel?"#f0b429":"#1c2035"}`,background:sel?"#f0b42910":"#0f1117",cursor:"pointer",marginBottom:8}}>
+                              <div style={S.cp}>
+                                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                  <div>
+                                    <div style={{fontSize:13,fontWeight:600,color:sel?"#f0b429":"#e8eaf0"}}>{p.name}</div>
+                                    <div style={{fontSize:11,color:"#4a5170",marginTop:2}}>{p.type} · {p.items.length} items</div>
+                                  </div>
+                                  <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${sel?"#f0b429":"#4a5170"}`,background:sel?"#f0b429":"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                                    {sel&&<span style={{color:"#0a0c12",fontSize:12,fontWeight:800}}>✓</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                    }
+                    {copySelIds.size>0&&(
+                      <button onClick={()=>{
+                        const srcPlans=(floorPlans[copyFromId]||[]).filter(p=>copySelIds.has(p.id));
+                        const copies=srcPlans.map(p=>({...p,id:String(Date.now()+Math.random()),items:[...p.items]}));
+                        setFloorPlans(prev=>({...prev,[selBId]:[...(prev[selBId]||[]),...copies]}));
+                        const srcName=builders.find(b=>b.id===copyFromId)?.name||"";
+                        toast&&toast(`Floor plan${copies.length>1?"s":""} copied from ${srcName}`);
+                        setShowCopyModal(false);setCopyFromId("");setCopySelIds(new Set());
+                      }} style={{...S.btnP,marginTop:8}}>
+                        Copy {copySelIds.size} Plan{copySelIds.size>1?"s":""}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em"}}>FLOOR PLANS</div>
-            <button onClick={()=>{setPlanName("");setPlanType("duplex");setPlanItems([{desc:LINE_ITEM_PRESETS[0].desc,unit:LINE_ITEM_PRESETS[0].unit,qty:"",price:LINE_ITEM_PRESETS[0].price}]);setEditPlan(null);setView("editPlan");}} style={{background:"#f0b42918",border:"1px solid #f0b42930",color:"#f0b429",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Add Plan</button>
+            <div style={{display:"flex",gap:8}}>
+              {builders.filter(b=>b.id!==selBId).some(b=>(floorPlans[b.id]||[]).length>0)&&(
+                <button onClick={()=>{setCopyFromId("");setCopySelIds(new Set());setShowCopyModal(true);}} style={{background:"#1c2035",border:"1px solid #2a3050",color:"#9ca3bc",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Copy from Builder</button>
+              )}
+              <button onClick={()=>{setPlanName("");setPlanType("duplex");setPlanItems([{desc:LINE_ITEM_PRESETS[0].desc,unit:LINE_ITEM_PRESETS[0].unit,qty:"",price:LINE_ITEM_PRESETS[0].price}]);setEditPlan(null);setView("editPlan");}} style={{background:"#f0b42918",border:"1px solid #f0b42930",color:"#f0b429",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Add Plan</button>
+            </div>
           </div>
           {plans.length===0&&<div style={{textAlign:"center",padding:"20px 0",color:"#4a5170",fontSize:13}}>No floor plans yet</div>}
           {plans.map(p=>(
@@ -2297,7 +2397,7 @@ export default function App() {
     tracker:     <TrackerScreen builders={builders} invoices={invoices} setScreen={setScreen} tBld={tBld} setTBld={setTBld} onDuplicate={handleDuplicate} onViewInvoice={handleViewInvoice} onMarkPaid={markPaid} onDeleteInvoice={deleteInvoice} onSaveManualInvoice={saveManualInvoice}/>,
     history:     <HistoryScreen builders={builders} invoices={invoices} paid={paid} onResend={handleResend}/>,
     contractors: <ContractorsScreen workers={workers} payments={payments} onAddWorker={addWorkerFn} onUpdateWorker={updateWorkerFn} onRemoveWorker={removeWorkerFn} onAddPayment={addPaymentFn} onDeletePayment={deletePaymentFn}/>,
-    settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices} onDeleteBuilder={deleteBuilder}/>,
+    settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices} onDeleteBuilder={deleteBuilder} toast={showToast}/>,
   };
 
   const navSetScreen = s => { if(s==="c1") setDuplicateFrom(null); setScreen(s); };
