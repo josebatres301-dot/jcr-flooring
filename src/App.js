@@ -35,8 +35,8 @@ const INIT_BUILDERS = [
 const BUILDER_COLORS = ["#3b82f6","#10b981","#8b5cf6","#f59e0b","#06b6d4","#ef4444","#f97316","#64748b","#ec4899","#14b8a6","#a855f7","#84cc16"];
 
 const LINE_ITEM_PRESETS = [
-  { desc:"LVP Install — Slab",       item:"LVP Install", unit:"SF",  price:1.15,   flat:false, autoDetail:qty=>`${qty} SQ FT on Slab @ $1.15/SF`,      qtyLabel:"SQ FT" },
-  { desc:"LVP Install — Subfloor",   item:"LVP Install", unit:"SF",  price:1.75,   flat:false, autoDetail:qty=>`${qty} SQ FT on Subfloor @ $1.75/SF`,   qtyLabel:"SQ FT" },
+  { desc:"LVP Install — Slab",       item:"LVP Install", unit:"SF",  price:1.15,   flat:false, autoDetail:(qty,price)=>`${qty} SQ FT on Slab @ $${price}/SF`,      qtyLabel:"SQ FT" },
+  { desc:"LVP Install — Subfloor",   item:"LVP Install", unit:"SF",  price:1.75,   flat:false, autoDetail:(qty,price)=>`${qty} SQ FT on Subfloor @ $${price}/SF`,   qtyLabel:"SQ FT" },
   { desc:"Tile — Kitchen",           item:"Tile",         unit:"SF",  price:10.00,  flat:false, autoDetail:qty=>`${qty} SQFT Kitchen`,                   qtyLabel:"SQ FT" },
   { desc:"Tile — Backsplash Small",  item:"Tile",         unit:"job", price:50.00,  flat:false, autoDetail:qty=>`${qty} Small Backsplash${qty>1?"es":""}`,                  qtyLabel:"qty"   },
   { desc:"Tile — Backsplash Med",    item:"Tile",         unit:"job", price:75.00,  flat:false, autoDetail:qty=>`${qty} Medium Backsplash${qty>1?"es":""}`,                 qtyLabel:"qty"   },
@@ -506,7 +506,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
     const unitPrice=Math.round(baseQty*parseFloat(i.price||0));
     const amt=Math.round(unitPrice*(fq1?1:mult));
     const autoD=i.autoDetail||preset?.autoDetail;
-    const detail=autoD?(isFl?autoD():autoD(baseQty)):(i.isCustom?(i.desc||""):(i.detail||""));
+    const detail=autoD?(isFl?autoD():autoD(baseQty, parseFloat(i.price||0))):(i.isCustom?(i.desc||""):(i.detail||""));
     const itemLabel=i.isCustom?"Other":(preset?.item||i.item||i.desc);
     return {...i,displayQty:dq,amount:amt,detail,itemLabel,unitPrice};
   };
@@ -521,7 +521,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
         const unitPrice=Math.round(i.qty*i.price);
         const amt=Math.round(unitPrice*(fq1?1:mult));
         const autoD=preset?.autoDetail;
-        const detail=autoD?(isFl?autoD():autoD(i.qty)):(i.detail||"");
+        const detail=autoD?(isFl?autoD():autoD(i.qty, i.price)):(i.detail||"");
         return {...i,displayQty:dq,amount:amt,unitPrice,detail,itemLabel:preset?.item||i.desc};
       });
       const extras=items.filter(i=>i.desc&&(i.qty||i.flat||i.isCustom)).map(resolveItem);
@@ -757,7 +757,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                       const preset=presets.find(p=>p.desc===it.desc);
                       const isFl=preset?.flat||false;
                       const autoD=preset?.autoDetail;
-                      const detail=autoD?(isFl?autoD():autoD(it.qty)):"";
+                      const detail=autoD?(isFl?autoD():autoD(it.qty, it.price)):"";
                       const amt=Math.round(it.qty*it.price*(isFl?1:mult));
                       return (
                         <div key={i} style={{padding:"5px 0",borderBottom:i<selPlan.items.length-1?"1px solid #1c2035":"none"}}>
@@ -820,7 +820,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
               const fq1=item.forceQty1??false;
               const baseQty=parseFloat(item.qty||0);
               const amount=Math.round(isFlatItem?parseFloat(item.price||0):baseQty*parseFloat(item.price||0)*(fq1?1:mult));
-              const autoDesc=(!item.isCustom&&item.autoDetail)?(isFlatItem?item.autoDetail():item.qty?item.autoDetail(item.qty):item.autoDetail("...")):"";
+              const autoDesc=(!item.isCustom&&item.autoDetail)?(isFlatItem?item.autoDetail():item.qty?item.autoDetail(item.qty, parseFloat(item.price||0)):item.autoDetail("...", parseFloat(item.price||0))):"";
               return (
                 <div key={item.id} style={S.card}><div style={S.cp}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
@@ -2324,8 +2324,8 @@ export default function App() {
       const hasBuiltIns = presetsSnap.docs.some(d => d.data().isBuiltIn);
       if (!hasBuiltIns) {
         const BUILT_IN_TEMPLATES = [
-          "{qty} SQ FT on Slab @ $1.15/SF",
-          "{qty} SQ FT on Subfloor @ $1.75/SF",
+          "{qty} SQ FT on Slab @ {price}/SF",
+          "{qty} SQ FT on Subfloor @ {price}/SF",
           "{qty} SQFT Kitchen",
           "{qty} Small Backsplash",
           "{qty} Medium Backsplash",
@@ -2518,7 +2518,7 @@ export default function App() {
       ...p,
       autoDetail: p.flat
         ? ()=>(p.autoDetailTemplate||p.desc)
-        : qty=>(p.autoDetailTemplate||p.desc).replace("{qty}",qty),
+        : (qty, price)=>(p.autoDetailTemplate||p.desc).replace("{qty}",qty).replace("{price}","$"+(price??p.price)),
     }))
   ,[customPresets]);
 
