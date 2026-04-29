@@ -502,11 +502,11 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
     const isFl=i.flat??preset?.flat??false;
     const fq1=i.forceQty1??false;
     const baseQty=isFl?1:parseFloat(i.qty||0);
-    const dq=(isFl||fq1)?1:mult;
-    const amt=Math.round(baseQty*parseFloat(i.price||0)*(isFl||fq1?1:mult));
+    const dq=fq1?1:mult;
+    const unitPrice=Math.round(baseQty*parseFloat(i.price||0));
+    const amt=Math.round(unitPrice*(fq1?1:mult));
     const autoD=i.autoDetail||preset?.autoDetail;
     const detail=autoD?(isFl?autoD():autoD(baseQty)):(i.detail||"");
-    const unitPrice=Math.round(isFl?parseFloat(i.price||0):baseQty*parseFloat(i.price||0));
     const itemLabel=i.isCustom?"Other":(preset?.item||i.item||i.desc);
     return {...i,displayQty:dq,amount:amt,detail,itemLabel,unitPrice};
   };
@@ -516,9 +516,10 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
       const base=selPlan.items.map(i=>{
         const preset=presets.find(p=>p.desc===i.desc);
         const isFl=preset?.flat||false;
-        const dq=isFl?i.qty:i.qty*mult;
-        const amt=Math.round(i.qty*i.price*(isFl?1:mult));
-        const unitPrice=Math.round(i.price);
+        const fq1=i.forceQty1||false;
+        const dq=fq1?1:mult;
+        const unitPrice=Math.round(i.qty*i.price);
+        const amt=Math.round(unitPrice*(fq1?1:mult));
         const autoD=preset?.autoDetail;
         const detail=autoD?(isFl?autoD():autoD(i.qty)):(i.detail||"");
         return {...i,displayQty:dq,amount:amt,unitPrice,detail,itemLabel:preset?.item||i.desc};
