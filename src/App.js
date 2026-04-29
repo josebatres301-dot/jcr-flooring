@@ -516,9 +516,9 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
       const base=selPlan.items.map(i=>{
         const preset=presets.find(p=>p.desc===i.desc);
         const isFl=preset?.flat||false;
-        const dq=isFl?1:mult;
+        const dq=isFl?i.qty:i.qty*mult;
         const amt=Math.round(i.qty*i.price*(isFl?1:mult));
-        const unitPrice=Math.round(isFl?i.price:i.qty*i.price);
+        const unitPrice=Math.round(i.price);
         const autoD=preset?.autoDetail;
         const detail=autoD?(isFl?autoD():autoD(i.qty)):(i.detail||"");
         return {...i,displayQty:dq,amount:amt,unitPrice,detail,itemLabel:preset?.item||i.desc};
@@ -2096,21 +2096,7 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
     <div style={{paddingBottom:16}}>
       <div style={S.hdr}><button style={S.btnBk} onClick={()=>setView("main")}>← Back</button><div style={S.eye}>SETTINGS</div><div style={S.ttl}>Line Item Presets</div></div>
       <div style={{padding:"0 16px"}}>
-        <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:8}}>BUILT-IN PRESETS</div>
-        {LINE_ITEM_PRESETS.map(p=>(
-          <div key={p.desc} style={S.card}><div style={S.cp}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div>
-                <div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>{p.desc}</div>
-                <div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{p.item} · {p.flat?"Flat fee":"Per "+p.unit} · ${p.price}</div>
-              </div>
-              <span style={{fontSize:15,opacity:0.5}}>🔒</span>
-            </div>
-          </div></div>
-        ))}
-        <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:8,marginTop:20}}>CUSTOM PRESETS</div>
-        {customPresets.length===0&&<div style={{textAlign:"center",padding:"16px 0",color:"#4a5170",fontSize:13}}>No custom presets yet</div>}
-        {customPresets.map(p=>(
+        {[...customPresets].sort((a,b)=>(a.order??999)-(b.order??999)).map(p=>(
           <div key={p.id} style={S.card}><div style={S.cp}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
               <div style={{flex:1}}>
@@ -2125,7 +2111,7 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
             </div>
           </div></div>
         ))}
-        <button onClick={()=>{setEditingPreset(null);setPresetForm({desc:"",item:"",unit:"job",price:0,flat:false,autoDetailTemplate:"",qtyLabel:"qty"});setView("editPreset");}} style={{...S.btnS,marginTop:8}}>+ Add Custom Preset</button>
+        <button onClick={()=>{setEditingPreset(null);setPresetForm({desc:"",item:"",unit:"job",price:0,flat:false,autoDetailTemplate:"",qtyLabel:"qty"});setView("editPreset");}} style={{...S.btnS,marginTop:8}}>+ Add Preset</button>
       </div>
     </div>
   );
@@ -2173,7 +2159,7 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
         <button onClick={async()=>{
           if(!presetForm.desc||!presetForm.item)return;
           const id=editingPreset?.id||("cp_"+Date.now());
-          await saveCustomPreset?.({...presetForm,id});
+          await saveCustomPreset?.({...editingPreset,...presetForm,id});
           setView("managePresets");
         }} style={{...S.btnP,opacity:presetForm.desc&&presetForm.item?1:0.35}}>
           {editingPreset?"Save Changes":"Add Preset"}
@@ -2208,7 +2194,7 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
         <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12}}>PRICING</div>
         <div style={{...S.card,cursor:"pointer"}} onClick={()=>setView("prices")}><div style={{...S.cp,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:14,fontWeight:600,color:"#e8eaf0"}}>Default Prices</div><div style={{fontSize:11,color:"#4a5170",marginTop:1}}>LVP, tile, backsplash, trim rates</div></div><span style={{color:"#4a5170",fontSize:16}}>›</span></div></div>
         <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12,marginTop:16}}>LINE ITEMS</div>
-        <div style={{...S.card,cursor:"pointer"}} onClick={()=>setView("managePresets")}><div style={{...S.cp,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:14,fontWeight:600,color:"#e8eaf0"}}>Manage Line Items</div><div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{LINE_ITEM_PRESETS.length} built-in · {customPresets.length} custom</div></div><span style={{color:"#4a5170",fontSize:16}}>›</span></div></div>
+        <div style={{...S.card,cursor:"pointer"}} onClick={()=>setView("managePresets")}><div style={{...S.cp,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:14,fontWeight:600,color:"#e8eaf0"}}>Manage Line Items</div><div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{customPresets.length} presets</div></div><span style={{color:"#4a5170",fontSize:16}}>›</span></div></div>
         <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12,marginTop:16}}>BUILDERS</div>
         <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr 1fr":isTablet?"1fr 1fr":"1fr",gap:10}}>
         {builders.map(b=>{
@@ -2327,15 +2313,37 @@ export default function App() {
         setPayments(paymentsSnap.docs.map(d => d.data()));
       }
 
-      // ── Custom line item presets ──────────────────────────────────────────────
+      // ── Line item presets (all presets live in Firestore) ────────────────────
       const presetsSnap = await getDocs(collection(db,"lineItemPresets"));
-      if (presetsSnap.empty) {
-        const defaults = [
-          {id:"cp_tile_2shower", desc:"Tile Over 2 Showers", item:"Tile", unit:"job", price:350, flat:false, autoDetailTemplate:"Tile over {qty} showers", qtyLabel:"qty"},
-          {id:"cp_tile_1shower", desc:"Tile Over 1 Shower",  item:"Tile", unit:"job", price:175, flat:false, autoDetailTemplate:"Tile over 1 shower",      qtyLabel:"qty"},
+      const hasBuiltIns = presetsSnap.docs.some(d => d.data().isBuiltIn);
+      if (!hasBuiltIns) {
+        const BUILT_IN_TEMPLATES = [
+          "{qty} SQ FT on Slab @ $1.15/SF",
+          "{qty} SQ FT on Subfloor @ $1.75/SF",
+          "{qty} SQFT Kitchen",
+          "{qty} Small Backsplash",
+          "{qty} Medium Backsplash",
+          "{qty} Large Backsplash",
+          "{qty} Large, {qty} Small Backsplash",
+          "{qty} Linear Feet",
+          "Trip Fee",
+          "Concrete Drill/Prep",
+          "Material Cost",
+          "",
         ];
-        await Promise.all(defaults.map(p => setDoc(doc(db,"lineItemPresets",p.id), p)));
-        setCustomPresets(defaults);
+        const builtIns = LINE_ITEM_PRESETS.map((p,i)=>({
+          id:`bi_${i}`, desc:p.desc, item:p.item, unit:p.unit, price:p.price,
+          flat:p.flat, autoDetailTemplate:BUILT_IN_TEMPLATES[i], qtyLabel:p.qtyLabel||null,
+          isBuiltIn:true, order:i,
+        }));
+        const customDefaults = presetsSnap.empty ? [
+          {id:"cp_tile_2shower", desc:"Tile Over 2 Showers", item:"Tile", unit:"job", price:350, flat:false, autoDetailTemplate:"Tile over {qty} showers", qtyLabel:"qty", isBuiltIn:false, order:12},
+          {id:"cp_tile_1shower", desc:"Tile Over 1 Shower",  item:"Tile", unit:"job", price:175, flat:false, autoDetailTemplate:"Tile over 1 shower",      qtyLabel:"qty", isBuiltIn:false, order:13},
+        ] : [];
+        const toSeed = [...builtIns, ...customDefaults];
+        await Promise.all(toSeed.map(p => setDoc(doc(db,"lineItemPresets",p.id), p)));
+        const existing = presetsSnap.empty ? [] : presetsSnap.docs.map(d => ({id:d.id,...d.data()}));
+        setCustomPresets([...existing, ...toSeed]);
       } else {
         setCustomPresets(presetsSnap.docs.map(d => ({id:d.id,...d.data()})));
       }
@@ -2499,19 +2507,18 @@ export default function App() {
     }
   };
 
-  const allPresets = useMemo(()=>[
-    ...LINE_ITEM_PRESETS,
-    ...customPresets.map(p=>({
+  const allPresets = useMemo(()=>
+    [...customPresets].sort((a,b)=>(a.order??999)-(b.order??999)).map(p=>({
       ...p,
       autoDetail: p.flat
         ? ()=>(p.autoDetailTemplate||p.desc)
         : qty=>(p.autoDetailTemplate||p.desc).replace("{qty}",qty),
-    })),
-  ],[customPresets]);
+    }))
+  ,[customPresets]);
 
   const saveCustomPreset = async (preset) => {
     const id = preset.id||("cp_"+Date.now());
-    const data = {id, desc:preset.desc, item:preset.item||"Other", unit:preset.unit||"job", price:parseFloat(preset.price)||0, flat:preset.flat||false, autoDetailTemplate:preset.autoDetailTemplate||"", qtyLabel:preset.qtyLabel||"qty"};
+    const data = {id, desc:preset.desc, item:preset.item||"Other", unit:preset.unit||"job", price:parseFloat(preset.price)||0, flat:preset.flat||false, autoDetailTemplate:preset.autoDetailTemplate||"", qtyLabel:preset.qtyLabel||"qty", isBuiltIn:preset.isBuiltIn||false, order:preset.order??999};
     await setDoc(doc(db,"lineItemPresets",id), data);
     setCustomPresets(prev=>{const idx=prev.findIndex(p=>p.id===id);if(idx>-1){const n=[...prev];n[idx]=data;return n;}return [...prev,data];});
   };
