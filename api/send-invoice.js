@@ -80,7 +80,7 @@ function buildPDF(data) {
 
     // ── Bill To / Job Site boxes ─────────────────────────────────────────────
     const BX_Y = y + 12;
-    const BX_H = 56;
+    const BX_H = 64;
     const BX_W = (CW - 10) / 2;
 
     // Bill To
@@ -95,11 +95,12 @@ function buildPDF(data) {
     doc.rect(BX2, BX_Y, BX_W, BX_H).fillAndStroke(GLT, GMED);
     doc.fillColor(ACC).font('Helvetica-Bold').fontSize(8)
        .text('JOB SITE', BX2 + 10, BX_Y + 10, { lineBreak: false });
+    const streetOnly = (data.address || '').split(' · ')[0];
     doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11)
-       .text(data.address || '', BX2 + 10, BX_Y + 24, { width: BX_W - 20, lineBreak: false });
+       .text(streetOnly, BX2 + 10, BX_Y + 24, { width: BX_W - 20, lineBreak: false });
     if (data.city) {
       doc.fillColor(MUTED).font('Helvetica').fontSize(9)
-         .text(data.city, BX2 + 10, BX_Y + 38, { width: BX_W - 20, lineBreak: false });
+         .text(data.city, BX2 + 10, BX_Y + 40, { width: BX_W - 20, lineBreak: false });
     }
 
     y = BX_Y + BX_H + 14;

@@ -563,7 +563,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
     const invNum=`${b.prefix}${String(newN).padStart(3,"0")}`;
     const ri=resolvedItems();
     const fullAddr=[unitNum.trim(),streetName.trim()].filter(Boolean).join(" ");
-    const inv={id:Date.now()+Math.random(),builder:b.id,invoiceNum:invNum,address:fullAddr+(city?" · "+city:""),city,jobType,amount:total,date:invDate,lineItems:ri,notes,receipts,floorPlan:selPlan?.name||null};
+    const inv={id:Date.now()+Math.random(),builder:b.id,invoiceNum:invNum,address:fullAddr+(city?" · "+city:""),streetName:streetName.trim(),city,jobType,amount:total,date:invDate,lineItems:ri,notes,receipts,floorPlan:selPlan?.name||null};
     setBundle(prev=>[...prev,{invoice:inv,builder:b,builderId:b.id,num:newN,formState:{unitNum,streetName,city,jobType,invDate,items,notes,selPlan,mode}}]);
     setStep(4);
   };
@@ -2619,11 +2619,8 @@ export default function App() {
     await setDoc(doc(db,"invoices",String(inv.id)), serializeInvoice(inv));
     setBuilderNums(prev => ({...prev,[builderId]:newNum}));
     await updateDoc(doc(db,"builders",builderId), {lastNum:newNum});
-    // Auto-save address
-    const main = (inv.address||"").split(" · ")[0].trim();
-    const sp = main.indexOf(" ");
-    const street = sp===-1 ? main : main.slice(sp+1);
-    if (street && inv.city) saveAddress(street, inv.city);
+    // Auto-save address — use the raw streetName field set in generate()
+    if (inv.streetName && inv.city) saveAddress(inv.streetName, inv.city);
   };
 
   const markPaid = async (inv) => {
