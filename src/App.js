@@ -34,18 +34,26 @@ const INIT_BUILDERS = [
 
 const BUILDER_COLORS = ["#3b82f6","#10b981","#8b5cf6","#f59e0b","#06b6d4","#ef4444","#f97316","#64748b","#ec4899","#14b8a6","#a855f7","#84cc16"];
 
+const DEFAULT_CATEGORIES = [
+  { id:"cat_lvp",       name:"LVP Install",  color:"#3b82f6", order:1, defaults:{ inputType:"quantity",     unit:"SF",  multiplyByUnits:true,  priceInDescription:true,  descTemplate:"{qty} SQ FT @ {price}/SF" }},
+  { id:"cat_tile",      name:"Tile",          color:"#8b5cf6", order:2, defaults:{ inputType:"fixed",        unit:"job", multiplyByUnits:true,  priceInDescription:false, descTemplate:"" }},
+  { id:"cat_trim",      name:"Trim",          color:"#10b981", order:3, defaults:{ inputType:"quantity",     unit:"LF",  multiplyByUnits:true,  priceInDescription:false, descTemplate:"{qty} Linear Feet" }},
+  { id:"cat_materials", name:"Materials",     color:"#f59e0b", order:4, defaults:{ inputType:"manual_price", unit:"job", multiplyByUnits:false, priceInDescription:false, descTemplate:"Materials" }},
+  { id:"cat_other",     name:"Other",         color:"#64748b", order:5, defaults:{ inputType:"fixed",        unit:"job", multiplyByUnits:false, priceInDescription:false, descTemplate:"" }},
+];
+
 const LINE_ITEM_PRESETS = [
-  { desc:"LVP Install — Slab",        item:"LVP Install",  inputType:"quantity",     unit:"SF",  price:1.15,   priceInDescription:true,  descTemplate:"{qty} SQ FT on Slab @ {price}/SF",     multiplyByUnits:true  },
-  { desc:"LVP Install — Subfloor",    item:"LVP Install",  inputType:"quantity",     unit:"SF",  price:1.75,   priceInDescription:true,  descTemplate:"{qty} SQ FT on Subfloor @ {price}/SF", multiplyByUnits:true  },
-  { desc:"Tile — Kitchen",            item:"Tile",          inputType:"quantity",     unit:"SF",  price:10.00,  priceInDescription:false, descTemplate:"{qty} SQFT Kitchen",                    multiplyByUnits:true  },
-  { desc:"Tile — Backsplash Small",   item:"Tile",          inputType:"fixed",        unit:"job", price:50.00,  priceInDescription:false, descTemplate:"1 Small Backsplash",                    multiplyByUnits:true  },
-  { desc:"Tile — Backsplash Med",     item:"Tile",          inputType:"fixed",        unit:"job", price:75.00,  priceInDescription:false, descTemplate:"1 Medium Backsplash",                   multiplyByUnits:true  },
-  { desc:"Tile — Backsplash Large",   item:"Tile",          inputType:"fixed",        unit:"job", price:100.00, priceInDescription:false, descTemplate:"1 Large Backsplash",                    multiplyByUnits:true  },
-  { desc:"Tile — Lg + Sm Backsplash", item:"Tile",          inputType:"fixed",        unit:"job", price:150.00, priceInDescription:false, descTemplate:"1 Large, 1 Small Backsplash",           multiplyByUnits:true  },
-  { desc:"Quarter Round / Trim",      item:"Quarter Round", inputType:"quantity",     unit:"LF",  price:1.00,   priceInDescription:false, descTemplate:"{qty} Linear Feet",                     multiplyByUnits:true  },
-  { desc:"Trip Fee",                  item:"Other",         inputType:"fixed",        unit:"job", price:100.00, priceInDescription:false, descTemplate:"Trip Fee",                              multiplyByUnits:false },
-  { desc:"Concrete Drill/Prep",       item:"Other",         inputType:"fixed",        unit:"job", price:0.00,   priceInDescription:false, descTemplate:"Concrete Drill/Prep",                   multiplyByUnits:false },
-  { desc:"Materials Cost",            item:"Materials",     inputType:"manual_price", unit:"job", price:0.00,   priceInDescription:false, descTemplate:"Materials",                             multiplyByUnits:false },
+  { desc:"LVP Install — Slab",        item:"LVP Install",  inputType:"quantity",     unit:"SF",  price:1.15,   priceInDescription:true,  descTemplate:"{qty} SQ FT on Slab @ {price}/SF",     multiplyByUnits:true,  categoryId:"cat_lvp"       },
+  { desc:"LVP Install — Subfloor",    item:"LVP Install",  inputType:"quantity",     unit:"SF",  price:1.75,   priceInDescription:true,  descTemplate:"{qty} SQ FT on Subfloor @ {price}/SF", multiplyByUnits:true,  categoryId:"cat_lvp"       },
+  { desc:"Tile — Kitchen",            item:"Tile",          inputType:"quantity",     unit:"SF",  price:10.00,  priceInDescription:false, descTemplate:"{qty} SQFT Kitchen",                    multiplyByUnits:true,  categoryId:"cat_tile"      },
+  { desc:"Tile — Backsplash Small",   item:"Tile",          inputType:"fixed",        unit:"job", price:50.00,  priceInDescription:false, descTemplate:"1 Small Backsplash",                    multiplyByUnits:true,  categoryId:"cat_tile"      },
+  { desc:"Tile — Backsplash Med",     item:"Tile",          inputType:"fixed",        unit:"job", price:75.00,  priceInDescription:false, descTemplate:"1 Medium Backsplash",                   multiplyByUnits:true,  categoryId:"cat_tile"      },
+  { desc:"Tile — Backsplash Large",   item:"Tile",          inputType:"fixed",        unit:"job", price:100.00, priceInDescription:false, descTemplate:"1 Large Backsplash",                    multiplyByUnits:true,  categoryId:"cat_tile"      },
+  { desc:"Tile — Lg + Sm Backsplash", item:"Tile",          inputType:"fixed",        unit:"job", price:150.00, priceInDescription:false, descTemplate:"1 Large, 1 Small Backsplash",           multiplyByUnits:true,  categoryId:"cat_tile"      },
+  { desc:"Quarter Round / Trim",      item:"Quarter Round", inputType:"quantity",     unit:"LF",  price:1.00,   priceInDescription:false, descTemplate:"{qty} Linear Feet",                     multiplyByUnits:true,  categoryId:"cat_trim"      },
+  { desc:"Trip Fee",                  item:"Other",         inputType:"fixed",        unit:"job", price:100.00, priceInDescription:false, descTemplate:"Trip Fee",                              multiplyByUnits:false, categoryId:"cat_other"     },
+  { desc:"Concrete Drill/Prep",       item:"Other",         inputType:"fixed",        unit:"job", price:0.00,   priceInDescription:false, descTemplate:"Concrete Drill/Prep",                   multiplyByUnits:false, categoryId:"cat_other"     },
+  { desc:"Materials Cost",            item:"Materials",     inputType:"manual_price", unit:"job", price:0.00,   priceInDescription:false, descTemplate:"Materials",                             multiplyByUnits:false, categoryId:"cat_materials" },
 ];
 
 const INIT_ACTIVE = [
@@ -137,7 +145,7 @@ const todayStr  = () => { const d=new Date(); return `${d.getMonth()+1}/${d.getD
 const nextNum   = (b,nums) => `${b.prefix}${String(nums[b.id]+1).padStart(3,"0")}`;
 const ageDays   = dateStr => { const [m,d,y]=dateStr.split("/"); const then=new Date(`20${y}`,m-1,d); return Math.floor((Date.now()-then)/(86400000)); };
 const blankItem = (pm={}) => { const p=LINE_ITEM_PRESETS[0]; return { id:Date.now()+Math.random(), desc:p.desc, item:p.item, unit:p.unit, qty:"", price:pm[p.desc]??p.price, inputType:p.inputType, descTemplate:p.descTemplate, multiplyByUnits:p.multiplyByUnits, priceOverridden:false, forceQty1:false }; };
-const blankCustomItem = () => ({ id:Date.now()+Math.random(), isCustom:true, desc:"", item:"Other", unit:"job", qty:"1", price:"0", inputType:"quantity", multiplyByUnits:false, priceOverridden:false });
+const blankCustomItem = () => ({ id:Date.now()+Math.random(), isCustom:true, desc:"", item:"Other", unit:"job", qty:"1", price:"0", inputType:"quantity", multiplyByUnits:false, priceOverridden:false, categoryId:"cat_other" });
 
 // Strip functions and File objects before writing to Firestore
 const serializeInvoice = inv => {
@@ -470,7 +478,7 @@ function HomeScreen({builders,invoices,paid,setScreen,setTBld}) {
 
 // ─── CREATE INVOICE SCREEN ────────────────────────────────────────────────────
 
-function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,duplicateFrom,onInvoiceCreated,onSendInvoice,streetHistory,presets=LINE_ITEM_PRESETS}) {
+function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,duplicateFrom,onInvoiceCreated,onSendInvoice,savedAddresses=[],presets=LINE_ITEM_PRESETS,categories=[]}) {
   // Parse existing address into unit + street for duplicateFrom
   const _parseAddr=addr=>{const main=(addr||"").split(" · ")[0].trim();const sp=main.indexOf(" ");return sp===-1?{unit:"",street:main}:{unit:main.slice(0,sp),street:main.slice(sp+1)};};
   const _initAddr=_parseAddr(duplicateFrom?.address||"");
@@ -506,19 +514,19 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
     let displayQty,unitPrice,amount,detail;
     if(inputType==="quantity"){
       displayQty=effectiveMult;
-      unitPrice=Math.round(baseQty*effectivePrice);
-      amount=Math.round(unitPrice*effectiveMult);
+      unitPrice=baseQty*effectivePrice;
+      amount=Math.round(baseQty*effectivePrice*effectiveMult);
       const tmpl=i.descTemplate||preset.descTemplate||"";
       detail=tmpl.replace("{qty}",baseQty).replace("{price}","$"+effectivePrice);
     } else if(inputType==="fixed"){
       displayQty=effectiveMult;
-      unitPrice=Math.round(effectivePrice);
+      unitPrice=effectivePrice;
       amount=Math.round(effectivePrice*effectiveMult);
       detail=i.descTemplate||preset.descTemplate||i.desc||"";
     } else if(inputType==="manual_price"){
       displayQty=1;
-      unitPrice=Math.round(effectivePrice);
-      amount=unitPrice;
+      unitPrice=effectivePrice;
+      amount=Math.round(effectivePrice);
       detail=i.descTemplate||preset.descTemplate||i.desc||"";
     } else {
       displayQty=1;unitPrice=0;amount=0;detail=i.desc||"";
@@ -544,6 +552,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
     if(it.id!==id)return it;
     if(f==="desc"&&!it.isCustom){const p=presets.find(p=>p.desc===v);return p?{...it,desc:v,item:p.item,unit:p.unit,price:prices[p.desc]??p.price,inputType:p.inputType||"quantity",descTemplate:p.descTemplate||"",multiplyByUnits:p.multiplyByUnits??true,qty:"",priceOverridden:false,forceQty1:false}:it;}
     if(f==="price")return{...it,price:v,priceOverridden:true};
+    if(f==="categoryId"&&it.isCustom){const cat=categories.find(c=>c.id===v);return {...it,categoryId:v,inputType:cat?.defaults?.inputType||"quantity",unit:cat?.defaults?.unit||"job",multiplyByUnits:cat?.defaults?.multiplyByUnits??false};}
     return{...it,[f]:v};
   }));
 
@@ -695,9 +704,9 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
               <div style={{position:"relative",marginBottom:8}}>
                 <div style={{fontSize:9,fontWeight:700,color:"#4a5170",letterSpacing:"0.1em",marginBottom:4}}>STREET NAME</div>
                 <input value={streetName} onChange={e=>{setStreetName(e.target.value);setStreetOpen(true);}} onFocus={()=>setStreetOpen(true)} onBlur={()=>setTimeout(()=>setStreetOpen(false),150)} placeholder="e.g. Newton St" style={S.inp}/>
-                {streetOpen&&streetName.length>0&&(streetHistory||[]).filter(s=>s.street.toLowerCase().includes(streetName.toLowerCase())).slice(0,8).length>0&&(
+                {streetOpen&&streetName.length>0&&(savedAddresses||[]).filter(s=>s.street.toLowerCase().includes(streetName.toLowerCase())).slice(0,8).length>0&&(
                   <div style={{position:"absolute",top:"100%",left:0,right:0,background:"#12151f",border:"1px solid #1c2035",borderRadius:10,zIndex:50,maxHeight:180,overflowY:"auto",marginTop:2}}>
-                    {(streetHistory||[]).filter(s=>s.street.toLowerCase().includes(streetName.toLowerCase())).slice(0,8).map((s,i,arr)=>(
+                    {(savedAddresses||[]).filter(s=>s.street.toLowerCase().includes(streetName.toLowerCase())).slice(0,8).map((s,i,arr)=>(
                       <div key={i} onMouseDown={e=>{e.preventDefault();setStreetName(s.street);setCity(s.city);setStreetOpen(false);}} style={{padding:"10px 14px",cursor:"pointer",borderBottom:i<arr.length-1?"1px solid #1c2035":"none"}}>
                         <div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>{s.street}</div>
                         <div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{s.city}</div>
@@ -825,6 +834,11 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                   </div>
                   {item.isCustom ? (
                     <>
+                      {categories.length>0&&(
+                        <select value={item.categoryId||"cat_other"} onChange={e=>updItem(item.id,"categoryId",e.target.value)} style={{...S.sel,marginBottom:8}}>
+                          {categories.map(cat=><option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                        </select>
+                      )}
                       <input value={item.desc} onChange={e=>updItem(item.id,"desc",e.target.value)} placeholder="Description (e.g. Electrical outlet repair)" style={{...S.inp,marginBottom:8}}/>
                       <div style={{display:"flex",gap:4,marginBottom:8}}>
                         {["SF","LF","job","hr"].map(u=>(
@@ -853,7 +867,13 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                   ) : (
                     <>
                       <select value={item.desc} onChange={e=>updItem(item.id,"desc",e.target.value)} style={{...S.sel,marginBottom:8}}>
-                        {presets.map(p=><option key={p.desc} value={p.desc}>{p.desc}</option>)}
+                        {categories.length>0 ? (
+                          categories.map(cat=>{
+                            const catItems=presets.filter(p=>(p.categoryId||"cat_other")===cat.id);
+                            if(!catItems.length) return null;
+                            return <optgroup key={cat.id} label={cat.name}>{catItems.map(p=><option key={p.desc} value={p.desc}>{p.desc}</option>)}</optgroup>;
+                          })
+                        ) : presets.map(p=><option key={p.desc} value={p.desc}>{p.desc}</option>)}
                       </select>
                       {r.detail&&<div style={{background:"#0a0c12",border:"1px solid #1c2035",borderRadius:10,padding:"8px 12px",marginBottom:8,fontSize:12,color:"#4a5170"}}>{r.detail}</div>}
                       {inputType==="quantity"&&(
@@ -1184,7 +1204,7 @@ function TrackerScreen({builders,invoices,setScreen,tBld,setTBld,onDuplicate,onV
 
 // ─── FINANCE SCREEN ──────────────────────────────────────────────────────────
 
-function HistoryScreen({builders, invoices, paid, onResend, resetKey}) {
+function HistoryScreen({builders, invoices, paid, onResend, resetKey, categories=[]}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
   const isDesktop = w >= 1024;
@@ -1368,6 +1388,37 @@ function HistoryScreen({builders, invoices, paid, onResend, resetKey}) {
                 </div>
               ))}
             </div></div>
+
+            {/* Category breakdown */}
+            {(() => {
+              const catTotals = categories.map(cat => {
+                const total = paidYear.reduce((s,inv) =>
+                  s + (inv.lineItems||[]).filter(li=>li.categoryId===cat.id).reduce((ss,li)=>ss+(li.amount||0),0), 0);
+                return {...cat,total};
+              }).filter(c=>c.total>0).sort((a,b)=>b.total-a.total);
+              if (!catTotals.length) return null;
+              const catGrand = catTotals.reduce((s,c)=>s+c.total,0);
+              return (
+                <div style={{...S.card,marginTop:4}}><div style={S.cp}>
+                  <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12}}>BY CATEGORY THIS YEAR</div>
+                  {catTotals.map((cat,i)=>(
+                    <div key={cat.id} style={{display:"flex",alignItems:"center",gap:10,marginBottom:i<catTotals.length-1?10:0}}>
+                      <div style={{width:10,height:10,borderRadius:"50%",background:cat.color,flexShrink:0}}/>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:12,fontWeight:600,color:"#e8eaf0"}}>{cat.name}</div>
+                        <div style={{height:3,background:"#1c2035",borderRadius:2,marginTop:4}}>
+                          <div style={{height:3,background:cat.color,borderRadius:2,width:`${catGrand>0?(cat.total/catGrand*100):0}%`}}/>
+                        </div>
+                      </div>
+                      <div style={{textAlign:"right"}}>
+                        <div style={{fontSize:13,fontWeight:700,color:"#10b981"}}>{fmt(cat.total)}</div>
+                        <div style={{fontSize:9,color:"#4a5170"}}>{catGrand>0?(cat.total/catGrand*100).toFixed(0):0}%</div>
+                      </div>
+                    </div>
+                  ))}
+                </div></div>
+              );
+            })()}
           </>
         )}
 
@@ -1842,7 +1893,7 @@ function BuilderForm({isEdit, selBId, builders, setBuilders, setBuilderNums, set
 
 // ─── SETTINGS SCREEN ──────────────────────────────────────────────────────────
 
-function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNums,setBuilderNums,prices,setPrices,onDeleteBuilder,toast,presets=LINE_ITEM_PRESETS,customPresets=[],saveCustomPreset,deleteCustomPreset,resetKey}) {
+function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNums,setBuilderNums,prices,setPrices,onDeleteBuilder,toast,presets=LINE_ITEM_PRESETS,customPresets=[],saveCustomPreset,deleteCustomPreset,resetKey,categories=[],saveCategory,deleteCategory,savedAddresses=[],deleteAddress,updateAddress}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
   const isDesktop = w >= 1024;
@@ -1858,7 +1909,13 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
   const [copyFromId,setCopyFromId]=useState("");
   const [copySelIds,setCopySelIds]=useState(new Set());
   const [editingPreset,setEditingPreset]=useState(null);
-  const [presetForm,setPresetForm]=useState({desc:"",item:"",unit:"job",price:0,inputType:"quantity",descTemplate:"",multiplyByUnits:true,priceInDescription:false});
+  const [presetForm,setPresetForm]=useState({desc:"",item:"",unit:"job",price:0,inputType:"quantity",descTemplate:"",multiplyByUnits:true,priceInDescription:false,categoryId:"cat_other"});
+  const [addrSearch, setAddrSearch] = useState("");
+  const [editingAddr, setEditingAddr] = useState(null);
+  const [confirmDelAddr, setConfirmDelAddr] = useState(null);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [catForm, setCatForm] = useState({id:"",name:"",color:"#64748b",order:99,defaults:{inputType:"quantity",unit:"job",multiplyByUnits:true,priceInDescription:false,descTemplate:""}});
+  const [confirmDelCat, setConfirmDelCat] = useState(null);
 
   const selBuilder=builders.find(b=>b.id===selBId);
 
@@ -2057,7 +2114,15 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
                     ))}
                   </div>
                 </>
-              : <select value={item.desc} onChange={e=>updPI(idx,"desc",e.target.value)} style={{...S.sel,marginBottom:8}}>{presets.map(p=><option key={p.desc} value={p.desc}>{p.desc}</option>)}</select>
+              : <select value={item.desc} onChange={e=>updPI(idx,"desc",e.target.value)} style={{...S.sel,marginBottom:8}}>
+                  {categories.length>0 ? (
+                    categories.map(cat=>{
+                      const catItems=presets.filter(p=>(p.categoryId||"cat_other")===cat.id);
+                      if(!catItems.length) return null;
+                      return <optgroup key={cat.id} label={cat.name}>{catItems.map(p=><option key={p.desc} value={p.desc}>{p.desc}</option>)}</optgroup>;
+                    })
+                  ) : presets.map(p=><option key={p.desc} value={p.desc}>{p.desc}</option>)}
+                </select>
             }
             <div style={{display:"grid",gridTemplateColumns:`${(item.inputType||"quantity")==="quantity"?"1fr ":""}1fr`,gap:8}}>
               {(item.inputType||"quantity")==="quantity"&&<div><div style={{...S.lbl,fontSize:9}}>QTY PER UNIT</div><input type="number" value={item.qty} onChange={e=>updPI(idx,"qty",e.target.value)} placeholder="0" style={S.inp}/></div>}
@@ -2115,13 +2180,13 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
                 {p.descTemplate&&<div style={{fontSize:10,color:"#4a5170",marginTop:2,fontStyle:"italic"}}>"{p.descTemplate}"</div>}
               </div>
               <div style={{display:"flex",gap:6,marginLeft:10}}>
-                <button onClick={()=>{setEditingPreset(p);setPresetForm({desc:p.desc,item:p.item||"",unit:p.unit||"job",price:p.price||0,inputType:p.inputType||"quantity",descTemplate:p.descTemplate||"",multiplyByUnits:p.multiplyByUnits??true,priceInDescription:p.priceInDescription||false});setView("editPreset");}} style={{background:"#1c2035",border:"none",color:"#9ca3bc",fontSize:11,padding:"5px 10px",borderRadius:8,cursor:"pointer"}}>Edit</button>
+                <button onClick={()=>{setEditingPreset(p);setPresetForm({desc:p.desc,item:p.item||"",unit:p.unit||"job",price:p.price||0,inputType:p.inputType||"quantity",descTemplate:p.descTemplate||"",multiplyByUnits:p.multiplyByUnits??true,priceInDescription:p.priceInDescription||false,categoryId:p.categoryId||"cat_other"});setView("editPreset");}} style={{background:"#1c2035",border:"none",color:"#9ca3bc",fontSize:11,padding:"5px 10px",borderRadius:8,cursor:"pointer"}}>Edit</button>
                 <button onClick={()=>deleteCustomPreset&&deleteCustomPreset(p.id)} style={{background:"#ef444418",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"5px 10px",borderRadius:8,cursor:"pointer"}}>Delete</button>
               </div>
             </div>
           </div></div>
         ))}
-        <button onClick={()=>{setEditingPreset(null);setPresetForm({desc:"",item:"",unit:"job",price:0,inputType:"quantity",descTemplate:"",multiplyByUnits:true,priceInDescription:false});setView("editPreset");}} style={{...S.btnS,marginTop:8}}>+ Add Preset</button>
+        <button onClick={()=>{setEditingPreset(null);setPresetForm({desc:"",item:"",unit:"job",price:0,inputType:"quantity",descTemplate:"",multiplyByUnits:true,priceInDescription:false,categoryId:"cat_other"});setView("editPreset");}} style={{...S.btnS,marginTop:8}}>+ Add Preset</button>
       </div>
     </div>
   );
@@ -2130,6 +2195,17 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
     <div style={{paddingBottom:16}}>
       <div style={S.hdr}><button style={S.btnBk} onClick={()=>setView("managePresets")}>← Back</button><div style={S.eye}>SETTINGS</div><div style={S.ttl}>{editingPreset?"Edit Preset":"New Preset"}</div></div>
       <div style={{padding:"0 16px"}}>
+        {categories.length>0&&(
+          <div style={S.card}><div style={S.cp}>
+            <div style={S.lbl}>CATEGORY</div>
+            <select value={presetForm.categoryId||"cat_other"} onChange={e=>{
+              const cat=categories.find(c=>c.id===e.target.value);
+              setPresetForm(prev=>({...prev,categoryId:e.target.value,inputType:cat?.defaults?.inputType||prev.inputType,unit:cat?.defaults?.unit||prev.unit,multiplyByUnits:cat?.defaults?.multiplyByUnits??prev.multiplyByUnits,descTemplate:cat?.defaults?.descTemplate||prev.descTemplate}));
+            }} style={S.sel}>
+              {categories.map(cat=><option key={cat.id} value={cat.id}>{cat.name}</option>)}
+            </select>
+          </div></div>
+        )}
         <div style={S.card}><div style={S.cp}>
           <div style={S.lbl}>NAME / DESCRIPTION</div>
           <input value={presetForm.desc} onChange={e=>setPresetForm(prev=>({...prev,desc:e.target.value}))} placeholder="e.g. Tile Over 2 Showers" style={S.inp}/>
@@ -2189,6 +2265,134 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
     </div>
   );
 
+  if(view==="savedAddresses") return (
+    <div style={{paddingBottom:16}}>
+      <div style={S.hdr}><button style={S.btnBk} onClick={()=>setView("main")}>← Back</button><div style={S.eye}>SETTINGS</div><div style={S.ttl}>Saved Addresses</div></div>
+      <div style={{padding:"0 16px"}}>
+        {confirmDelAddr&&(
+          <ConfirmModal
+            title={`Remove "${confirmDelAddr.street}"?`}
+            message={`Remove ${confirmDelAddr.street}, ${confirmDelAddr.city} from saved addresses?`}
+            confirmLabel="Remove"
+            danger={true}
+            onConfirm={()=>{deleteAddress&&deleteAddress(confirmDelAddr.id);setConfirmDelAddr(null);if(editingAddr?.id===confirmDelAddr.id)setEditingAddr(null);}}
+            onCancel={()=>setConfirmDelAddr(null)}
+          />
+        )}
+        <input value={addrSearch} onChange={e=>setAddrSearch(e.target.value)} placeholder="Search addresses..." style={{...S.inp,marginBottom:12}}/>
+        {[...savedAddresses].filter(a=>!addrSearch||a.street.toLowerCase().includes(addrSearch.toLowerCase())||a.city.toLowerCase().includes(addrSearch.toLowerCase())).sort((a,b)=>a.street.localeCompare(b.street)).map(addr=>(
+          <div key={addr.id} style={S.card}><div style={S.cp}>
+            {editingAddr?.id===addr.id ? (
+              <>
+                <div style={{marginBottom:8}}><div style={{...S.lbl,fontSize:9}}>STREET NAME</div><input value={editingAddr.street} onChange={e=>setEditingAddr(p=>({...p,street:e.target.value}))} style={S.inp}/></div>
+                <div style={{marginBottom:8}}><div style={{...S.lbl,fontSize:9}}>CITY, STATE ZIP</div><input value={editingAddr.city} onChange={e=>setEditingAddr(p=>({...p,city:e.target.value}))} style={S.inp}/></div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>{updateAddress&&updateAddress(editingAddr.id,editingAddr.street,editingAddr.city);setEditingAddr(null);}} style={{flex:1,padding:10,background:"#f0b429",color:"#0a0c12",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer"}}>Save</button>
+                  <button onClick={()=>setEditingAddr(null)} style={{padding:"10px 16px",background:"none",border:"1px solid #1c2035",color:"#9ca3bc",borderRadius:10,fontSize:13,cursor:"pointer"}}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>{addr.street}</div>
+                  <div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{addr.city}</div>
+                </div>
+                <div style={{display:"flex",gap:6}}>
+                  <button onClick={()=>setEditingAddr({...addr})} style={{background:"#1c2035",border:"none",color:"#9ca3bc",fontSize:11,padding:"5px 10px",borderRadius:8,cursor:"pointer"}}>Edit</button>
+                  <button onClick={()=>setConfirmDelAddr(addr)} style={{background:"#ef444418",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"5px 10px",borderRadius:8,cursor:"pointer"}}>Remove</button>
+                </div>
+              </div>
+            )}
+          </div></div>
+        ))}
+        {savedAddresses.length===0&&<div style={{textAlign:"center",padding:"32px 0",color:"#4a5170",fontSize:13}}>No saved addresses yet. They're added automatically when you send invoices.</div>}
+      </div>
+    </div>
+  );
+
+  if(view==="manageCategories") return (
+    <div style={{paddingBottom:16}}>
+      <div style={S.hdr}><button style={S.btnBk} onClick={()=>setView("main")}>← Back</button><div style={S.eye}>SETTINGS</div><div style={S.ttl}>Categories</div></div>
+      <div style={{padding:"0 16px"}}>
+        {confirmDelCat&&(
+          <ConfirmModal
+            title={`Delete "${confirmDelCat.name}"?`}
+            message={`Delete the ${confirmDelCat.name} category? This cannot be undone.`}
+            confirmLabel="Delete"
+            danger={true}
+            onConfirm={()=>{deleteCategory&&deleteCategory(confirmDelCat.id);setConfirmDelCat(null);if(editingCategory?.id===confirmDelCat.id)setEditingCategory(null);}}
+            onCancel={()=>setConfirmDelCat(null)}
+          />
+        )}
+        {categories.map(cat=>(
+          <div key={cat.id} style={S.card}><div style={S.cp}>
+            {editingCategory?.id===cat.id ? (
+              <>
+                <div style={{marginBottom:8}}><div style={{...S.lbl,fontSize:9}}>NAME</div><input value={catForm.name} onChange={e=>setCatForm(p=>({...p,name:e.target.value}))} style={S.inp}/></div>
+                <div style={{marginBottom:8}}>
+                  <div style={{...S.lbl,fontSize:9}}>COLOR</div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                    {["#3b82f6","#8b5cf6","#10b981","#f59e0b","#64748b","#ef4444","#f97316","#06b6d4","#ec4899","#14b8a6"].map(c=>(
+                      <div key={c} onClick={()=>setCatForm(p=>({...p,color:c}))} style={{width:28,height:28,borderRadius:6,background:c,cursor:"pointer",border:`2px solid ${catForm.color===c?"#fff":"transparent"}`,opacity:catForm.color===c?1:0.6}}/>
+                    ))}
+                  </div>
+                </div>
+                <div style={{marginBottom:8}}>
+                  <div style={{...S.lbl,fontSize:9}}>DEFAULT INPUT TYPE</div>
+                  <div style={{display:"flex",gap:6}}>
+                    {[["quantity","Qty"],["fixed","Fixed"],["manual_price","Manual"]].map(([t,label])=>(
+                      <button key={t} onClick={()=>setCatForm(p=>({...p,defaults:{...p.defaults,inputType:t}}))} style={{flex:1,padding:"6px 0",background:catForm.defaults.inputType===t?"#f0b42920":"#0a0c12",border:`1px solid ${catForm.defaults.inputType===t?"#f0b429":"#1c2035"}`,color:catForm.defaults.inputType===t?"#f0b429":"#9ca3bc",borderRadius:8,fontSize:11,fontWeight:catForm.defaults.inputType===t?700:400,cursor:"pointer"}}>{label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{marginBottom:8}}>
+                  <div style={{...S.lbl,fontSize:9}}>DEFAULT UNIT</div>
+                  <div style={{display:"flex",gap:6}}>
+                    {["SF","LF","job","hr"].map(u=>(
+                      <button key={u} onClick={()=>setCatForm(p=>({...p,defaults:{...p.defaults,unit:u}}))} style={{flex:1,padding:"6px 0",background:catForm.defaults.unit===u?"#f0b42920":"#0a0c12",border:`1px solid ${catForm.defaults.unit===u?"#f0b429":"#1c2035"}`,color:catForm.defaults.unit===u?"#f0b429":"#9ca3bc",borderRadius:8,fontSize:11,fontWeight:catForm.defaults.unit===u?700:400,cursor:"pointer"}}>{u}</button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                  <div style={{fontSize:12,color:"#e8eaf0"}}>Multiply by units (duplex ×2)</div>
+                  <div onClick={()=>setCatForm(p=>({...p,defaults:{...p.defaults,multiplyByUnits:!p.defaults.multiplyByUnits}}))} style={{width:44,height:24,borderRadius:12,background:catForm.defaults.multiplyByUnits?"#f0b429":"#1c2035",cursor:"pointer",display:"flex",alignItems:"center",padding:"0 3px"}}>
+                    <div style={{width:18,height:18,borderRadius:"50%",background:"#fff",transform:catForm.defaults.multiplyByUnits?"translateX(20px)":"translateX(0)",transition:"transform 0.2s"}}/>
+                  </div>
+                </div>
+                <div style={{marginBottom:12}}><div style={{...S.lbl,fontSize:9}}>DEFAULT DESC TEMPLATE</div><input value={catForm.defaults.descTemplate} onChange={e=>setCatForm(p=>({...p,defaults:{...p.defaults,descTemplate:e.target.value}}))} placeholder='e.g. "{qty} SQ FT @ {price}/SF"' style={S.inp}/></div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>{saveCategory&&saveCategory({...cat,...catForm,id:cat.id});setEditingCategory(null);}} style={{flex:1,padding:10,background:"#f0b429",color:"#0a0c12",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer"}}>Save</button>
+                  <button onClick={()=>setEditingCategory(null)} style={{padding:"10px 16px",background:"none",border:"1px solid #1c2035",color:"#9ca3bc",borderRadius:10,fontSize:13,cursor:"pointer"}}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{width:12,height:12,borderRadius:"50%",background:cat.color,flexShrink:0}}/>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>{cat.name}</div>
+                    <div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{cat.defaults?.inputType||"quantity"} · {cat.defaults?.unit||"job"}</div>
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:6}}>
+                  <button onClick={()=>{setEditingCategory(cat);setCatForm({...cat});}} style={{background:"#1c2035",border:"none",color:"#9ca3bc",fontSize:11,padding:"5px 10px",borderRadius:8,cursor:"pointer"}}>Edit</button>
+                  <button onClick={()=>setConfirmDelCat(cat)} style={{background:"#ef444418",border:"1px solid #ef444430",color:"#ef4444",fontSize:11,padding:"5px 10px",borderRadius:8,cursor:"pointer"}}>Delete</button>
+                </div>
+              </div>
+            )}
+          </div></div>
+        ))}
+        <button onClick={()=>{
+          const newId="cat_"+Date.now();
+          const newCat={id:newId,name:"New Category",color:"#64748b",order:categories.length+1,defaults:{inputType:"quantity",unit:"job",multiplyByUnits:true,priceInDescription:false,descTemplate:""}};
+          setCatForm({...newCat});
+          setEditingCategory(newCat);
+          saveCategory&&saveCategory(newCat);
+        }} style={{...S.btnS,marginTop:8}}>+ Add Category</button>
+      </div>
+    </div>
+  );
+
   if(view==="prices") return (
     <div style={{paddingBottom:16}}>
       <div style={S.hdr}><button style={S.btnBk} onClick={()=>setView("main")}>← Back</button><div style={S.eye}>SETTINGS</div><div style={S.ttl}>Default Prices</div><div style={{fontSize:12,color:"#4a5170",marginTop:4}}>Applies to new invoices</div></div>
@@ -2214,8 +2418,12 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
       <div style={{padding:"0 16px"}}>
         <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12}}>PRICING</div>
         <div style={{...S.card,cursor:"pointer"}} onClick={()=>setView("prices")}><div style={{...S.cp,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:14,fontWeight:600,color:"#e8eaf0"}}>Default Prices</div><div style={{fontSize:11,color:"#4a5170",marginTop:1}}>LVP, tile, backsplash, trim rates</div></div><span style={{color:"#4a5170",fontSize:16}}>›</span></div></div>
+        <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12,marginTop:16}}>CATEGORIES</div>
+        <div style={{...S.card,cursor:"pointer"}} onClick={()=>setView("manageCategories")}><div style={{...S.cp,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:14,fontWeight:600,color:"#e8eaf0"}}>Manage Categories</div><div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{categories.length} categories</div></div><span style={{color:"#4a5170",fontSize:16}}>›</span></div></div>
         <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12,marginTop:16}}>LINE ITEMS</div>
         <div style={{...S.card,cursor:"pointer"}} onClick={()=>setView("managePresets")}><div style={{...S.cp,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:14,fontWeight:600,color:"#e8eaf0"}}>Manage Line Items</div><div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{customPresets.length} presets</div></div><span style={{color:"#4a5170",fontSize:16}}>›</span></div></div>
+        <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12,marginTop:16}}>SAVED ADDRESSES</div>
+        <div style={{...S.card,cursor:"pointer"}} onClick={()=>setView("savedAddresses")}><div style={{...S.cp,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:14,fontWeight:600,color:"#e8eaf0"}}>Saved Addresses</div><div style={{fontSize:11,color:"#4a5170",marginTop:1}}>{savedAddresses.length} addresses</div></div><span style={{color:"#4a5170",fontSize:16}}>›</span></div></div>
         <div style={{fontSize:10,fontWeight:700,color:"#4a5170",letterSpacing:"0.12em",marginBottom:12,marginTop:16}}>BUILDERS</div>
         <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr 1fr":isTablet?"1fr 1fr":"1fr",gap:10}}>
         {builders.map(b=>{
@@ -2280,6 +2488,8 @@ export default function App() {
   const [workers,setWorkers]=useState([]);
   const [payments,setPayments]=useState([]);
   const [customPresets,setCustomPresets]=useState([]);
+  const [savedAddresses,setSavedAddresses]=useState([]);
+  const [categories,setCategories]=useState([]);
   const [dataLoaded,setDataLoaded]=useState(false);
 
   const syncReady = useRef(false); // true after initial load; gates write-back useEffects
@@ -2342,11 +2552,11 @@ export default function App() {
         const builtIns = LINE_ITEM_PRESETS.map((p,i)=>({
           id:`bi_${i}`, desc:p.desc, item:p.item, unit:p.unit, price:p.price,
           inputType:p.inputType, descTemplate:p.descTemplate, multiplyByUnits:p.multiplyByUnits,
-          priceInDescription:p.priceInDescription, isBuiltIn:true, order:i,
+          priceInDescription:p.priceInDescription, categoryId:p.categoryId||"cat_other", isBuiltIn:true, order:i,
         }));
         const customDefaults = presetsSnap.empty ? [
-          {id:"cp_tile_2shower", desc:"Tile Over 2 Showers", item:"Tile", unit:"job", price:350, inputType:"quantity", descTemplate:"Tile over {qty} showers", multiplyByUnits:true, priceInDescription:false, isBuiltIn:false, order:11},
-          {id:"cp_tile_1shower", desc:"Tile Over 1 Shower",  item:"Tile", unit:"job", price:175, inputType:"quantity", descTemplate:"Tile over 1 shower",      multiplyByUnits:true, priceInDescription:false, isBuiltIn:false, order:12},
+          {id:"cp_tile_2shower", desc:"Tile Over 2 Showers", item:"Tile", unit:"job", price:350, inputType:"quantity", descTemplate:"Tile over {qty} showers", multiplyByUnits:true, priceInDescription:false, categoryId:"cat_tile", isBuiltIn:false, order:11},
+          {id:"cp_tile_1shower", desc:"Tile Over 1 Shower",  item:"Tile", unit:"job", price:175, inputType:"quantity", descTemplate:"Tile over 1 shower",      multiplyByUnits:true, priceInDescription:false, categoryId:"cat_tile", isBuiltIn:false, order:12},
         ] : [];
         const toSeed = [...builtIns, ...customDefaults];
         await Promise.all(toSeed.map(p => setDoc(doc(db,"lineItemPresets",p.id), p)));
@@ -2354,6 +2564,19 @@ export default function App() {
         setCustomPresets([...existing, ...toSeed]);
       } else {
         setCustomPresets(presetsSnap.docs.map(d => ({id:d.id,...d.data()})));
+      }
+
+      // ── Saved addresses ──────────────────────────────────────────────────────────
+      const addrSnap = await getDocs(collection(db,"savedAddresses"));
+      setSavedAddresses(addrSnap.docs.map(d => d.data()));
+
+      // ── Line item categories ─────────────────────────────────────────────────────
+      const catsSnap = await getDocs(collection(db,"lineItemCategories"));
+      if (catsSnap.empty) {
+        await Promise.all(DEFAULT_CATEGORIES.map(c => setDoc(doc(db,"lineItemCategories",c.id), c)));
+        setCategories(DEFAULT_CATEGORIES);
+      } else {
+        setCategories(catsSnap.docs.map(d => d.data()).sort((a,b)=>(a.order??99)-(b.order??99)));
       }
 
       // ── Real-time listeners for invoices + paid (cross-device sync) ──
@@ -2396,6 +2619,11 @@ export default function App() {
     await setDoc(doc(db,"invoices",String(inv.id)), serializeInvoice(inv));
     setBuilderNums(prev => ({...prev,[builderId]:newNum}));
     await updateDoc(doc(db,"builders",builderId), {lastNum:newNum});
+    // Auto-save address
+    const main = (inv.address||"").split(" · ")[0].trim();
+    const sp = main.indexOf(" ");
+    const street = sp===-1 ? main : main.slice(sp+1);
+    if (street && inv.city) saveAddress(street, inv.city);
   };
 
   const markPaid = async (inv) => {
@@ -2526,7 +2754,7 @@ export default function App() {
 
   const saveCustomPreset = async (preset) => {
     const id = preset.id||("cp_"+Date.now());
-    const data = {id, desc:preset.desc, item:preset.item||"Other", unit:preset.unit||"job", price:parseFloat(preset.price)||0, inputType:preset.inputType||"quantity", descTemplate:preset.descTemplate||"", multiplyByUnits:preset.multiplyByUnits??true, priceInDescription:preset.priceInDescription||false, isBuiltIn:preset.isBuiltIn||false, order:preset.order??999};
+    const data = {id, desc:preset.desc, item:preset.item||"Other", unit:preset.unit||"job", price:parseFloat(preset.price)||0, inputType:preset.inputType||"quantity", descTemplate:preset.descTemplate||"", multiplyByUnits:preset.multiplyByUnits??true, priceInDescription:preset.priceInDescription||false, categoryId:preset.categoryId||"cat_other", isBuiltIn:preset.isBuiltIn||false, order:preset.order??999};
     await setDoc(doc(db,"lineItemPresets",id), data);
     setCustomPresets(prev=>{const idx=prev.findIndex(p=>p.id===id);if(idx>-1){const n=[...prev];n[idx]=data;return n;}return [...prev,data];});
   };
@@ -2536,20 +2764,42 @@ export default function App() {
     setCustomPresets(prev=>prev.filter(p=>p.id!==id));
   };
 
-  const streetHistory = useMemo(()=>{
-    const seen=new Map();
-    [...invoices,...paid].forEach(inv=>{
-      const main=(inv.address||"").split(" · ")[0].trim();
-      const cty=inv.city||"";
-      if(!main||!cty)return;
-      const sp=main.indexOf(" ");
-      const street=sp===-1?main:main.slice(sp+1);
-      if(!street)return;
-      const key=`${street.toLowerCase()}|${cty.toLowerCase()}`;
-      if(!seen.has(key))seen.set(key,{street,city:cty});
+  const saveAddress = async (street, city) => {
+    if (!street || !city) return;
+    const key = street.toLowerCase().replace(/[^a-z0-9]/g,"_")+"_"+city.toLowerCase().replace(/[^a-z0-9]/g,"_");
+    const id = "addr_"+key.slice(0,40);
+    setSavedAddresses(prev => {
+      if (prev.some(a => a.id===id)) return prev;
+      const addr = {id, street, city};
+      setDoc(doc(db,"savedAddresses",id), addr);
+      return [...prev, addr];
     });
-    return Array.from(seen.values());
-  },[invoices,paid]);
+  };
+
+  const deleteAddress = async (id) => {
+    await deleteDoc(doc(db,"savedAddresses",id));
+    setSavedAddresses(prev => prev.filter(a => a.id!==id));
+  };
+
+  const updateAddress = async (id, street, city) => {
+    const addr = {id, street, city};
+    await setDoc(doc(db,"savedAddresses",id), addr);
+    setSavedAddresses(prev => prev.map(a => a.id===id ? addr : a));
+  };
+
+  const saveCategory = async (cat) => {
+    await setDoc(doc(db,"lineItemCategories",cat.id), cat);
+    setCategories(prev => {
+      const idx = prev.findIndex(c => c.id===cat.id);
+      if (idx>-1) { const n=[...prev]; n[idx]=cat; return n; }
+      return [...prev,cat].sort((a,b)=>(a.order??99)-(b.order??99));
+    });
+  };
+
+  const deleteCategory = async (id) => {
+    await deleteDoc(doc(db,"lineItemCategories",id));
+    setCategories(prev => prev.filter(c => c.id!==id));
+  };
 
   if(!unlocked) return <LockScreen onUnlock={()=>setUnlocked(true)}/>;
 
@@ -2567,11 +2817,11 @@ export default function App() {
 
   const screens={
     home:        <HomeScreen builders={builders} invoices={invoices} paid={paid} setScreen={setScreen} setTBld={setTBld}/>,
-    c1:          <CreateScreen builders={builders} setScreen={setScreen} builderNums={builderNums} floorPlans={floorPlans} prices={prices} toast={showToast} duplicateFrom={duplicateFrom} onInvoiceCreated={createInvoice} onSendInvoice={sendInvoice} streetHistory={streetHistory} presets={allPresets}/>,
+    c1:          <CreateScreen builders={builders} setScreen={setScreen} builderNums={builderNums} floorPlans={floorPlans} prices={prices} toast={showToast} duplicateFrom={duplicateFrom} onInvoiceCreated={createInvoice} onSendInvoice={sendInvoice} savedAddresses={savedAddresses} presets={allPresets} categories={categories}/>,
     tracker:     <TrackerScreen builders={builders} invoices={invoices} setScreen={setScreen} tBld={tBld} setTBld={setTBld} onDuplicate={handleDuplicate} onViewInvoice={handleViewInvoice} onMarkPaid={markPaid} onDeleteInvoice={deleteInvoice} onSaveManualInvoice={saveManualInvoice} resetKey={resetKey}/>,
-    history:     <HistoryScreen builders={builders} invoices={invoices} paid={paid} onResend={handleResend} resetKey={resetKey}/>,
+    history:     <HistoryScreen builders={builders} invoices={invoices} paid={paid} onResend={handleResend} resetKey={resetKey} categories={categories}/>,
     contractors: <ContractorsScreen workers={workers} payments={payments} onAddWorker={addWorkerFn} onUpdateWorker={updateWorkerFn} onRemoveWorker={removeWorkerFn} onAddPayment={addPaymentFn} onDeletePayment={deletePaymentFn} resetKey={resetKey}/>,
-    settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices} onDeleteBuilder={deleteBuilder} toast={showToast} presets={allPresets} customPresets={customPresets} saveCustomPreset={saveCustomPreset} deleteCustomPreset={deleteCustomPreset} resetKey={resetKey}/>,
+    settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices} onDeleteBuilder={deleteBuilder} toast={showToast} presets={allPresets} customPresets={customPresets} saveCustomPreset={saveCustomPreset} deleteCustomPreset={deleteCustomPreset} resetKey={resetKey} categories={categories} saveCategory={saveCategory} deleteCategory={deleteCategory} savedAddresses={savedAddresses} deleteAddress={deleteAddress} updateAddress={updateAddress}/>,
   };
 
   const navSetScreen = s => { if(s==="c1") setDuplicateFrom(null); setScreen(s); setResetKey(k=>k+1); };
