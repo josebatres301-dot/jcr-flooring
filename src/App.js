@@ -1893,7 +1893,7 @@ function BuilderForm({isEdit, selBId, builders, setBuilders, setBuilderNums, set
 
 // ─── SETTINGS SCREEN ──────────────────────────────────────────────────────────
 
-function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNums,setBuilderNums,prices,setPrices,onDeleteBuilder,toast,presets=LINE_ITEM_PRESETS,customPresets=[],saveCustomPreset,deleteCustomPreset,resetKey,categories=[],saveCategory,deleteCategory,savedAddresses=[],deleteAddress,updateAddress}) {
+function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNums,setBuilderNums,prices,setPrices,onDeleteBuilder,toast,presets=LINE_ITEM_PRESETS,customPresets=[],saveCustomPreset,deleteCustomPreset,resetKey,categories=[],saveCategory,deleteCategory,savedAddresses=[],deleteAddress,updateAddress,rebuildAddresses}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
   const isDesktop = w >= 1024;
@@ -2306,6 +2306,7 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
           </div></div>
         ))}
         {savedAddresses.length===0&&<div style={{textAlign:"center",padding:"32px 0",color:"#4a5170",fontSize:13}}>No saved addresses yet. They're added automatically when you send invoices.</div>}
+        <button onClick={()=>rebuildAddresses&&rebuildAddresses()} style={{width:"100%",marginTop:16,padding:"12px 0",background:"#1c2035",border:"1px solid #2a3050",color:"#9ca3bc",borderRadius:12,fontSize:13,fontWeight:600,cursor:"pointer"}}>Rebuild from Invoices</button>
       </div>
     </div>
   );
@@ -2784,6 +2785,40 @@ export default function App() {
     setSavedAddresses(prev => prev.map(a => a.id===id ? addr : a));
   };
 
+  const rebuildAddresses = async () => {
+    const existingSnap = await getDocs(collection(db,"savedAddresses"));
+    await Promise.all(existingSnap.docs.map(d => deleteDoc(doc(db,"savedAddresses",d.id))));
+    setSavedAddresses([]);
+    const [invSnap, paidSnap] = await Promise.all([
+      getDocs(collection(db,"invoices")),
+      getDocs(collection(db,"paid"))
+    ]);
+    const allInvs = [...invSnap.docs.map(d=>d.data()), ...paidSnap.docs.map(d=>d.data())];
+    const seen = new Set();
+    for (const inv of allInvs) {
+      const city = inv.city || '';
+      if (!city) continue;
+      let street = inv.streetName || '';
+      if (!street) {
+        const main = (inv.address||'').split(' · ')[0].trim();
+        if (!main) continue;
+        const words = main.split(' ');
+        const si = words.findIndex(w => /^[a-zA-Z]/.test(w));
+        if (si === -1) continue;
+        street = words.slice(si).join(' ');
+      }
+      if (!street) continue;
+      const key = street.toLowerCase()+'|'+city.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const idKey = street.toLowerCase().replace(/[^a-z0-9]/g,"_")+"_"+city.toLowerCase().replace(/[^a-z0-9]/g,"_");
+      const id = "addr_"+idKey.slice(0,40);
+      const addr = {id, street, city};
+      await setDoc(doc(db,"savedAddresses",id), addr);
+      setSavedAddresses(prev => [...prev, addr]);
+    }
+  };
+
   const saveCategory = async (cat) => {
     await setDoc(doc(db,"lineItemCategories",cat.id), cat);
     setCategories(prev => {
@@ -2818,7 +2853,7 @@ export default function App() {
     tracker:     <TrackerScreen builders={builders} invoices={invoices} setScreen={setScreen} tBld={tBld} setTBld={setTBld} onDuplicate={handleDuplicate} onViewInvoice={handleViewInvoice} onMarkPaid={markPaid} onDeleteInvoice={deleteInvoice} onSaveManualInvoice={saveManualInvoice} resetKey={resetKey}/>,
     history:     <HistoryScreen builders={builders} invoices={invoices} paid={paid} onResend={handleResend} resetKey={resetKey} categories={categories}/>,
     contractors: <ContractorsScreen workers={workers} payments={payments} onAddWorker={addWorkerFn} onUpdateWorker={updateWorkerFn} onRemoveWorker={removeWorkerFn} onAddPayment={addPaymentFn} onDeletePayment={deletePaymentFn} resetKey={resetKey}/>,
-    settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices} onDeleteBuilder={deleteBuilder} toast={showToast} presets={allPresets} customPresets={customPresets} saveCustomPreset={saveCustomPreset} deleteCustomPreset={deleteCustomPreset} resetKey={resetKey} categories={categories} saveCategory={saveCategory} deleteCategory={deleteCategory} savedAddresses={savedAddresses} deleteAddress={deleteAddress} updateAddress={updateAddress}/>,
+    settings:    <SettingsScreen builders={builders} setBuilders={setBuilders} floorPlans={floorPlans} setFloorPlans={setFloorPlans} builderNums={builderNums} setBuilderNums={setBuilderNums} prices={prices} setPrices={setPrices} onDeleteBuilder={deleteBuilder} toast={showToast} presets={allPresets} customPresets={customPresets} saveCustomPreset={saveCustomPreset} deleteCustomPreset={deleteCustomPreset} resetKey={resetKey} categories={categories} saveCategory={saveCategory} deleteCategory={deleteCategory} savedAddresses={savedAddresses} deleteAddress={deleteAddress} updateAddress={updateAddress} rebuildAddresses={rebuildAddresses}/>,
   };
 
   const navSetScreen = s => { if(s==="c1") setDuplicateFrom(null); setScreen(s); setResetKey(k=>k+1); };
