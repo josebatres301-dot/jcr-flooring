@@ -487,6 +487,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
   const [bId,setBId]=useState(duplicateFrom?.builder||null);
   const [mode,setMode]=useState("lines");
   const [selPlan,setSelPlan]=useState(null);
+  const [excludedPlanItems,setExcludedPlanItems]=useState(new Set());
   const [unitNum,setUnitNum]=useState(_initAddr.unit);
   const [streetName,setStreetName]=useState(_initAddr.street);
   const [streetOpen,setStreetOpen]=useState(false);
@@ -538,7 +539,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
 
   const resolvedItems=()=>{
     if(mode==="plan"&&selPlan){
-      const base=selPlan.items.filter(i=>i.desc).map(resolveItem);
+      const base=selPlan.items.filter((i,idx)=>i.desc&&!excludedPlanItems.has(idx)).map(resolveItem);
       const extras=items.filter(i=>i.desc).map(resolveItem).filter(r=>r.inputType!=="quantity"||parseFloat(r.qty||0)>0||r.isCustom);
       return [...base,...extras];
     }
@@ -564,11 +565,11 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
     const ri=resolvedItems();
     const fullAddr=[unitNum.trim(),streetName.trim()].filter(Boolean).join(" ");
     const inv={id:Date.now()+Math.random(),builder:b.id,invoiceNum:invNum,address:fullAddr+(city?" · "+city:""),streetName:streetName.trim(),city,jobType,amount:total,date:invDate,lineItems:ri,notes,receipts,floorPlan:selPlan?.name||null};
-    setBundle(prev=>[...prev,{invoice:inv,builder:b,builderId:b.id,num:newN,formState:{unitNum,streetName,city,jobType,invDate,items,notes,selPlan,mode}}]);
+    setBundle(prev=>[...prev,{invoice:inv,builder:b,builderId:b.id,num:newN,formState:{unitNum,streetName,city,jobType,invDate,items,notes,selPlan,mode,excludedPlanItems}}]);
     setStep(4);
   };
 
-  const reset=()=>{setStep(1);setBId(null);setMode("lines");setSelPlan(null);setUnitNum("");setStreetName("");setCity("");setJobType("duplex");setInvDate(todayStr());setItems([blankItem(prices)]);setNotes("");setReceipts([]);setBundle([]);setConfirm(false);};
+  const reset=()=>{setStep(1);setBId(null);setMode("lines");setSelPlan(null);setExcludedPlanItems(new Set());setUnitNum("");setStreetName("");setCity("");setJobType("duplex");setInvDate(todayStr());setItems([blankItem(prices)]);setNotes("");setReceipts([]);setBundle([]);setConfirm(false);};
 
   const addAnother=()=>{
     const lastBId=bundle[bundle.length-1]?.builderId||null;
@@ -592,7 +593,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
         const fs=last.formState;
         setUnitNum(fs.unitNum);setStreetName(fs.streetName);setCity(fs.city);
         setJobType(fs.jobType);setInvDate(fs.invDate);setItems(fs.items);
-        setNotes(fs.notes);setSelPlan(fs.selPlan);setMode(fs.mode);
+        setNotes(fs.notes);setSelPlan(fs.selPlan);setMode(fs.mode);setExcludedPlanItems(fs.excludedPlanItems||new Set());
       }
       setBundle(prev=>prev.slice(0,-1));
       setStep(3);
@@ -755,7 +756,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                 {plans.length===0?(
                   <div style={{fontSize:13,color:"#4a5170",textAlign:"center",padding:"12px 0"}}>No floor plans for {builder.name} yet. Add them in Settings.</div>
                 ):plans.map(p=>(
-                  <div key={p.id} onClick={()=>setSelPlan(p)} style={{borderRadius:10,border:`1px solid ${selPlan?.id===p.id?"#f0b429":"#1c2035"}`,background:selPlan?.id===p.id?"#f0b42912":"#0a0c12",padding:"10px 14px",marginBottom:8,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div key={p.id} onClick={()=>{setSelPlan(p);setExcludedPlanItems(new Set());}} style={{borderRadius:10,border:`1px solid ${selPlan?.id===p.id?"#f0b429":"#1c2035"}`,background:selPlan?.id===p.id?"#f0b42912":"#0a0c12",padding:"10px 14px",marginBottom:8,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div>
                       <div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>{p.name}</div>
                       <div style={{fontSize:11,color:"#4a5170",marginTop:2}}>{p.items.length} items · {p.type}</div>
@@ -802,22 +803,42 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
           <>
             {mode==="plan"&&selPlan&&(
               <div style={S.card}><div style={S.cp}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
                   <div style={S.lbl}>FROM FLOOR PLAN: {selPlan.name.toUpperCase()}</div>
                   <span style={S.tag(mult===2?"#3b82f6":"#10b981",mult===2?"#3b82f615":"#10b98115")}>{mult===2?"DUPLEX ×2":"HOUSE ×1"}</span>
                 </div>
+                <div style={{fontSize:10,color:"#4a5170",marginBottom:10}}>Tap items to exclude from this invoice</div>
                 {selPlan.items.map((it,i)=>{
                   const r=resolveItem(it);
+                  const excluded=excludedPlanItems.has(i);
+                  const toggle=()=>{
+                    setExcludedPlanItems(prev=>{
+                      const next=new Set(prev);
+                      if(next.has(i))next.delete(i);else next.add(i);
+                      return next;
+                    });
+                  };
                   return (
-                    <div key={i} style={{padding:"6px 0",borderBottom:i<selPlan.items.length-1?"1px solid #1c2035":"none"}}>
-                      <div style={{display:"flex",justifyContent:"space-between"}}>
-                        <div style={{fontSize:12,fontWeight:600,color:"#c8cce0"}}>{r.itemLabel}</div>
-                        <div style={{fontSize:12,fontWeight:700,color:"#e8eaf0"}}>{fmt(r.amount)}</div>
+                    <div key={i} onClick={toggle} style={{padding:"7px 0",borderBottom:i<selPlan.items.length-1?"1px solid #1c2035":"none",cursor:"pointer",opacity:excluded?0.35:1,display:"flex",alignItems:"center",gap:10}}>
+                      <div style={{width:18,height:18,borderRadius:4,border:`1.5px solid ${excluded?"#ef4444":"#f0b429"}`,background:excluded?"transparent":"#f0b42918",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                        {!excluded&&<span style={{fontSize:11,color:"#f0b429",lineHeight:1}}>✓</span>}
                       </div>
-                      <div style={{fontSize:10,color:"#4a5170",marginTop:2}}>{r.detail} · qty {r.displayQty} · {fmt(r.unitPrice)}/unit</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:"flex",justifyContent:"space-between"}}>
+                          <div style={{fontSize:12,fontWeight:600,color:"#c8cce0",textDecoration:excluded?"line-through":"none"}}>{r.itemLabel}</div>
+                          <div style={{fontSize:12,fontWeight:700,color:excluded?"#4a5170":"#e8eaf0"}}>{fmt(r.amount)}</div>
+                        </div>
+                        <div style={{fontSize:10,color:"#4a5170",marginTop:2}}>{r.detail} · qty {r.displayQty} · {fmt(r.unitPrice)}/unit</div>
+                      </div>
                     </div>
                   );
                 })}
+                {excludedPlanItems.size>0&&(
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:10,paddingTop:8,borderTop:"1px solid #1c2035"}}>
+                    <span style={{fontSize:11,color:"#ef4444"}}>{excludedPlanItems.size} item{excludedPlanItems.size!==1?"s":""} excluded</span>
+                    <button onClick={()=>setExcludedPlanItems(new Set())} style={{background:"none",border:"1px solid #1c2035",borderRadius:6,color:"#9ca3bc",fontSize:11,padding:"3px 10px",cursor:"pointer"}}>Include All</button>
+                  </div>
+                )}
               </div></div>
             )}
 
