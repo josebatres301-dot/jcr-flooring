@@ -213,6 +213,7 @@ module.exports = async function handler(req, res) {
       : [body]; // legacy single-invoice
 
     const builderEmail = body.builderEmail || invoiceList[0]?.builderEmail;
+    const emailMessage = body.emailMessage || '';
 
     // 1. Generate a PDF for each invoice
     const pdfBuffers = await Promise.all(invoiceList.map(data => buildPDF(data)));
@@ -255,9 +256,10 @@ module.exports = async function handler(req, res) {
 
     // 5. Build subject + body text
     const subject = invoiceList.map(d => d.invoiceNum).join(' + ');
-    const bodyText = invoiceList.length === 1
-      ? `Please find attached invoice ${invoiceList[0].invoiceNum} for ${invoiceList[0].address}. Thank you for your business. — JCR Flooring LLC`
-      : `Please find attached ${invoiceList.length} invoices: ${subject}.\n\nAddresses:\n${invoiceList.map(d=>`• ${d.invoiceNum}: ${d.address}`).join('\n')}\n\nThank you for your business. — JCR Flooring LLC`;
+    const defaultMsg = invoiceList.length === 1
+      ? `Please find attached invoice ${invoiceList[0].invoiceNum} for ${invoiceList[0].address}.`
+      : `Please find attached ${invoiceList.length} invoices: ${subject}.\n\nAddresses:\n${invoiceList.map(d=>`• ${d.invoiceNum}: ${d.address}`).join('\n')}`;
+    const bodyText = (emailMessage ? emailMessage + '\n\n' : '') + defaultMsg + '\n\nThank you for your business. — JCR Flooring LLC';
 
     // 6. Build attachment list: PDFs first, then receipt images
     const pdfAttachments = invoiceList.map((data, i) => ({

@@ -416,6 +416,7 @@ function HomeScreen({builders,invoices,paid,setScreen,setTBld}) {
   const w = useWindowWidth();
   const isTablet = w >= 768;
   const isDesktop = w >= 1024;
+  const [expandedBld,setExpandedBld]=useState(null);
   const grand = invoices.reduce((s,i)=>s+i.amount,0);
   const now = new Date();
   const thisMonth = `${now.getMonth()+1}/${now.getFullYear()}`;
@@ -450,24 +451,47 @@ function HomeScreen({builders,invoices,paid,setScreen,setTBld}) {
           const total=invoices.filter(i=>i.builder===b.id).reduce((s,i)=>s+i.amount,0);
           const cnt=invoices.filter(i=>i.builder===b.id).length;
           const overdue=invoices.filter(i=>i.builder===b.id&&ageDays(i.date)>14).length;
+          const expanded=expandedBld===b.id;
           return (
-            <div key={b.id} style={{...S.card,marginBottom:0,cursor:"pointer"}} onClick={()=>{setTBld(b.id);setScreen("tracker");}}>
-              <div style={{...S.cp,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                <div style={{display:"flex",alignItems:"center",gap:12}}>
-                  <div style={{width:40,height:40,borderRadius:10,background:b.color+"18",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                    <span style={{fontSize:10,fontWeight:800,color:b.color}}>{b.prefix}</span>
-                  </div>
-                  <div>
-                    <div style={{fontSize:14,fontWeight:600,color:"#e8eaf0"}}>{b.name}</div>
-                    <div style={{display:"flex",gap:6,marginTop:3,alignItems:"center"}}>
-                      <span style={{fontSize:11,color:"#4a5170"}}>{cnt} invoice{cnt!==1?"s":""}</span>
-                      {overdue>0&&<span style={{...S.tag("#ef4444","#ef444415")}}>{overdue} overdue</span>}
+            <React.Fragment key={b.id}>
+              <div style={{...S.card,marginBottom:expanded?0:undefined,cursor:"pointer"}} onClick={()=>setExpandedBld(prev=>prev===b.id?null:b.id)}>
+                <div style={{...S.cp,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12}}>
+                    <div style={{width:40,height:40,borderRadius:10,background:b.color+"18",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      <span style={{fontSize:10,fontWeight:800,color:b.color}}>{b.prefix}</span>
+                    </div>
+                    <div>
+                      <div style={{fontSize:14,fontWeight:600,color:"#e8eaf0"}}>{b.name}</div>
+                      <div style={{display:"flex",gap:6,marginTop:3,alignItems:"center"}}>
+                        <span style={{fontSize:11,color:"#4a5170"}}>{cnt} invoice{cnt!==1?"s":""}</span>
+                        {overdue>0&&<span style={{...S.tag("#ef4444","#ef444415")}}>{overdue} overdue</span>}
+                      </div>
                     </div>
                   </div>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{fontSize:16,fontWeight:700,color:total>0?"#f0b429":"#2a2f45"}}>{fmt(total)}</div>
+                    <span style={{fontSize:10,color:"#4a5170"}}>{expanded?"▲":"▼"}</span>
+                  </div>
                 </div>
-                <div style={{fontSize:16,fontWeight:700,color:total>0?"#f0b429":"#2a2f45"}}>{fmt(total)}</div>
               </div>
-            </div>
+              {expanded&&(
+                <div style={{background:"#12151f",border:"1px solid #1c2035",borderTop:"none",borderRadius:"0 0 12px 12px",padding:"10px 14px",marginBottom:8}}>
+                  {invoices.filter(i=>i.builder===b.id).length===0?(
+                    <div style={{fontSize:12,color:"#4a5170",textAlign:"center",padding:"8px 0"}}>No outstanding invoices</div>
+                  ):invoices.filter(i=>i.builder===b.id).map(inv=>(
+                    <div key={inv.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #1c203550"}}>
+                      <div>
+                        <div style={{fontSize:13,fontWeight:600,color:"#e8eaf0"}}>{inv.invoiceNum}</div>
+                        <div style={{fontSize:11,color:"#4a5170"}}>{(inv.address||"").split(" · ")[0]}</div>
+                        <div style={{fontSize:10,color:ageDays(inv.date)>14?"#ef4444":"#4a5170"}}>{inv.date} · {ageDays(inv.date)}d ago</div>
+                      </div>
+                      <div style={{fontSize:14,fontWeight:700,color:"#f0b429"}}>{fmt(inv.amount)}</div>
+                    </div>
+                  ))}
+                  <button onClick={()=>{setTBld(b.id);setScreen("tracker");}} style={{width:"100%",marginTop:8,padding:"8px",background:"#1c2035",border:"none",color:"#9ca3bc",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>View All in Tracker →</button>
+                </div>
+              )}
+            </React.Fragment>
           );
         })}
         </div>
@@ -496,6 +520,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
   const [invDate,setInvDate]=useState(todayStr());
   const [items,setItems]=useState(duplicateFrom?.lineItems?.length>0?duplicateFrom.lineItems.map(i=>({...i,id:Date.now()+Math.random()})):[blankItem(prices)]);
   const [notes,setNotes]=useState(duplicateFrom?.notes||"");
+  const [emailMessage,setEmailMessage]=useState("");
   const [receipts,setReceipts]=useState([]);
   const [bundle,setBundle]=useState([]); // [{invoice, builder, builderId, num, formState}]
   const [confirm,setConfirm]=useState(false);
@@ -569,7 +594,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
     setStep(4);
   };
 
-  const reset=()=>{setStep(1);setBId(null);setMode("lines");setSelPlan(null);setExcludedPlanItems(new Set());setUnitNum("");setStreetName("");setCity("");setJobType("duplex");setInvDate(todayStr());setItems([blankItem(prices)]);setNotes("");setReceipts([]);setBundle([]);setConfirm(false);};
+  const reset=()=>{setStep(1);setBId(null);setMode("lines");setSelPlan(null);setExcludedPlanItems(new Set());setUnitNum("");setStreetName("");setCity("");setJobType("duplex");setInvDate(todayStr());setItems([blankItem(prices)]);setNotes("");setEmailMessage("");setReceipts([]);setBundle([]);setConfirm(false);};
 
   const addAnother=()=>{
     const lastBId=bundle[bundle.length-1]?.builderId||null;
@@ -609,10 +634,10 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
             onConfirm={async()=>{
               setConfirm(false);setSending(true);
               try {
+                await onSendInvoice(bundle.map(b=>b.invoice),mainBuilder,emailMessage);
                 for(const item of bundle){
                   await onInvoiceCreated(item.invoice,item.builderId,item.num);
                 }
-                await onSendInvoice(bundle.map(b=>b.invoice),mainBuilder);
                 toast(`✓ ${subject} sent to ${mainBuilder.email}`);
                 reset();
               } catch(e){
@@ -647,6 +672,11 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
               </div>
             </div>
           )}
+          <div style={S.card}><div style={S.cp}>
+            <div style={S.lbl}>EMAIL MESSAGE (optional)</div>
+            <div style={{fontSize:10,color:"#4a5170",marginBottom:6}}>Custom text to include in the email body</div>
+            <textarea value={emailMessage} onChange={e=>setEmailMessage(e.target.value)} placeholder="e.g. Please review and let me know if you have any questions." rows={3} style={{...S.inp,resize:"vertical",minHeight:60,fontFamily:"inherit"}}/>
+          </div></div>
           <button onClick={()=>!sending&&setConfirm(true)} style={{...S.btnP,background:sending?"#0d8a5e":"#10b981",color:"#fff",marginBottom:10,opacity:sending?0.8:1,cursor:sending?"default":"pointer"}}>
             {sending?"Sending…":`📧 Send ${subject} — ${fmt(bundleTotal)}`}
           </button>
@@ -672,7 +702,7 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
         {step===1&&(
           <>
             {builders.map(b=>(
-              <div key={b.id} onClick={()=>setBId(b.id)} style={{...S.card,border:`1px solid ${bId===b.id?b.color:"#1c2035"}`,background:bId===b.id?b.color+"12":"#12151f",cursor:"pointer"}}>
+              <div key={b.id} onClick={()=>{setBId(b.id);setStep(2);}} style={{...S.card,border:`1px solid ${bId===b.id?b.color:"#1c2035"}`,background:bId===b.id?b.color+"12":"#12151f",cursor:"pointer"}}>
                 <div style={{...S.cp,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div>
                     <div style={{fontSize:14,fontWeight:600,color:"#e8eaf0"}}>{b.name}</div>
@@ -682,7 +712,6 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
                 </div>
               </div>
             ))}
-            <button onClick={()=>bId&&setStep(2)} style={{...S.btnP,opacity:bId?1:0.35,marginTop:8}}>Continue →</button>
           </>
         )}
 
@@ -2475,15 +2504,48 @@ function SettingsScreen({builders,setBuilders,floorPlans,setFloorPlans,builderNu
 
 // ─── VIEW INVOICE MODAL ───────────────────────────────────────────────────────
 
-function ViewInvoiceModal({inv,builder,onClose,onResend}) {
+function ViewInvoiceModal({inv,builder,onClose,onResend,onSave}) {
   const [confirm,setConfirm]=useState(false);
+  const [editing,setEditing]=useState(false);
+  const [editAddr,setEditAddr]=useState(inv.address||'');
+  const [editCity,setEditCity]=useState(inv.city||'');
+  const [editAmount,setEditAmount]=useState(inv.amount||0);
+  const [editNotes,setEditNotes]=useState(inv.notes||'');
+  const inpStyle={width:"100%",padding:"8px 12px",background:"#12151f",border:"1px solid #1c2035",borderRadius:8,color:"#e8eaf0",fontSize:13,outline:"none",boxSizing:"border-box"};
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:998,overflowY:"auto",padding:"20px 16px 100px"}}>
       {confirm&&<ConfirmModal title={`Resend ${inv.invoiceNum}?`} message={`Send to ${builder?.email}?`} confirmLabel="Send" onConfirm={()=>{setConfirm(false);onResend(inv);}} onCancel={()=>setConfirm(false)}/>}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,gap:8}}>
         <button onClick={onClose} style={{background:"#12151f",border:"1px solid #1c2035",color:"#9ca3bc",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer"}}>← Close</button>
-        <button onClick={()=>setConfirm(true)} style={{background:"#10b981",border:"none",color:"#fff",borderRadius:10,padding:"8px 16px",fontSize:13,fontWeight:700,cursor:"pointer"}}>📧 Resend</button>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setEditing(e=>!e)} style={{background:editing?"#ef4444":"#3b82f6",border:"none",color:"#fff",borderRadius:10,padding:"8px 16px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{editing?"Cancel":"✏️ Edit"}</button>
+          <button onClick={()=>setConfirm(true)} style={{background:"#10b981",border:"none",color:"#fff",borderRadius:10,padding:"8px 16px",fontSize:13,fontWeight:700,cursor:"pointer"}}>📧 Resend</button>
+        </div>
       </div>
+      {editing&&(
+        <div style={{background:"#12151f",border:"1px solid #1c2035",borderRadius:12,padding:"14px",marginBottom:12,display:"flex",flexDirection:"column",gap:10}}>
+          <div>
+            <div style={{fontSize:10,fontWeight:700,color:"#4a5170",marginBottom:4}}>ADDRESS</div>
+            <input value={editAddr} onChange={e=>setEditAddr(e.target.value)} style={inpStyle}/>
+          </div>
+          <div>
+            <div style={{fontSize:10,fontWeight:700,color:"#4a5170",marginBottom:4}}>CITY, STATE ZIP</div>
+            <input value={editCity} onChange={e=>setEditCity(e.target.value)} style={inpStyle}/>
+          </div>
+          <div>
+            <div style={{fontSize:10,fontWeight:700,color:"#4a5170",marginBottom:4}}>AMOUNT</div>
+            <input type="number" value={editAmount} onChange={e=>setEditAmount(parseFloat(e.target.value)||0)} style={inpStyle}/>
+          </div>
+          <div>
+            <div style={{fontSize:10,fontWeight:700,color:"#4a5170",marginBottom:4}}>NOTES</div>
+            <textarea value={editNotes} onChange={e=>setEditNotes(e.target.value)} rows={2} style={{...inpStyle,resize:"vertical",fontFamily:"inherit"}}/>
+          </div>
+          <button onClick={async()=>{
+            await onSave(inv,{address:editAddr,city:editCity,amount:editAmount,notes:editNotes});
+            setEditing(false);
+          }} style={{padding:"10px",background:"#10b981",border:"none",color:"#fff",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer"}}>Save Changes</button>
+        </div>
+      )}
       <InvoiceCard inv={inv} builder={builder}/>
     </div>
   );
@@ -2702,7 +2764,7 @@ export default function App() {
   const handleDuplicate=inv=>{setDuplicateFrom(inv);setScreen("c1");};
   const handleViewInvoice=inv=>setViewingInvoice(inv);
 
-  const sendInvoice = async (invoicesArg, builder) => {
+  const sendInvoice = async (invoicesArg, builder, emailMessage='') => {
     const invoiceList = Array.isArray(invoicesArg) ? invoicesArg : [invoicesArg];
     const res = await fetch('/api/send-invoice', {
       method: 'POST',
@@ -2723,6 +2785,7 @@ export default function App() {
           receiptUrls:    (inv.receipts||[]).filter(r=>!r.uploading&&!r.error).map(r=>r.url),
         })),
         builderEmail: builder.email,
+        emailMessage: emailMessage || '',
       }),
     });
     if (!res.ok) {
@@ -2748,6 +2811,15 @@ export default function App() {
         await updateDoc(doc(db,"builders",builderId),{lastNum:numPart});
       }
     }
+  };
+
+  const handleSaveInvoice = async (inv, updates) => {
+    const id = String(inv.id);
+    const isPaid = paid.some(p => String(p.id) === id);
+    const collName = isPaid ? "paid" : "invoices";
+    await updateDoc(doc(db, collName, id), updates);
+    showToast(`✓ ${inv.invoiceNum} updated`);
+    setViewingInvoice(prev => prev ? {...prev, ...updates} : prev);
   };
 
   const handleResend = async (inv) => {
@@ -2895,7 +2967,7 @@ export default function App() {
           <BottomNav screen={screen} setScreen={navSetScreen}/>
         </div>
       )}
-      {viewingInvoice&&<ViewInvoiceModal inv={viewingInvoice} builder={viewingBuilder} onClose={()=>setViewingInvoice(null)} onResend={inv=>{handleResend(inv);setViewingInvoice(null);}}/>}
+      {viewingInvoice&&<ViewInvoiceModal inv={viewingInvoice} builder={viewingBuilder} onClose={()=>setViewingInvoice(null)} onResend={inv=>{handleResend(inv);setViewingInvoice(null);}} onSave={handleSaveInvoice}/>}
       {toast&&<div style={{position:"fixed",bottom:appIsDesktop?24:84,left:"50%",transform:"translateX(-50%)",background:"#10b981",color:"#fff",padding:"10px 22px",borderRadius:100,fontSize:13,fontWeight:700,zIndex:1000,whiteSpace:"nowrap",boxShadow:"0 4px 24px rgba(0,0,0,0.5)"}}>{toast}</div>}
     </div>
   );
