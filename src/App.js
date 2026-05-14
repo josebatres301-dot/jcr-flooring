@@ -453,7 +453,7 @@ function HomeScreen({builders,invoices,paid,setScreen,setTBld}) {
           const overdue=invoices.filter(i=>i.builder===b.id&&ageDays(i.date)>14).length;
           const expanded=expandedBld===b.id;
           return (
-            <React.Fragment key={b.id}>
+            <div key={b.id}>
               <div style={{...S.card,marginBottom:expanded?0:undefined,cursor:"pointer"}} onClick={()=>setExpandedBld(prev=>prev===b.id?null:b.id)}>
                 <div style={{...S.cp,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                   <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -491,7 +491,7 @@ function HomeScreen({builders,invoices,paid,setScreen,setTBld}) {
                   <button onClick={()=>{setTBld(b.id);setScreen("tracker");}} style={{width:"100%",marginTop:8,padding:"8px",background:"#1c2035",border:"none",color:"#9ca3bc",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>View All in Tracker →</button>
                 </div>
               )}
-            </React.Fragment>
+            </div>
           );
         })}
         </div>
