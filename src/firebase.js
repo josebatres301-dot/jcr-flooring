@@ -1,8 +1,5 @@
 import { initializeApp } from "firebase/app";
-import {
-  initializeFirestore, getFirestore,
-  persistentLocalCache, persistentMultipleTabManager,
-} from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -16,15 +13,5 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-let db;
-try {
-  db = initializeFirestore(app, {
-    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-  });
-} catch (e) {
-  console.warn("Firestore offline persistence unavailable:", e);
-  db = getFirestore(app);
-}
-
-export { db };
+export const db = getFirestore(app);
 export const storage = getStorage(app);

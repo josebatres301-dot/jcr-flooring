@@ -2612,12 +2612,8 @@ export default function App() {
     }, 10000);
 
     // ── Invoice listener — starts immediately, gates the splash screen ──────────
-    // With offline persistence the first callback fires from IndexedDB cache
-    // before any network round-trip. includeMetadataChanges lets us distinguish
-    // cache vs network in snap.metadata.fromCache if needed later.
     unsubInvoices = onSnapshot(
       collection(db, "invoices"),
-      { includeMetadataChanges: true },
       snap => {
         setInvoices(snap.docs.map(d => d.data()));
         if (!invoiceFirstFired) {
@@ -2631,7 +2627,6 @@ export default function App() {
     // ── Paid listener — starts immediately in background, no splash blocking ────
     unsubPaid = onSnapshot(
       collection(db, "paid"),
-      { includeMetadataChanges: true },
       snap => {
         setPaid(snap.docs.map(d => d.data()));
         if (!paidFirstFired) {
