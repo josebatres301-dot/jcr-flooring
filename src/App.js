@@ -2574,9 +2574,19 @@ export default function App() {
   const [customPresets,setCustomPresets]=useState([]);
   const [savedAddresses,setSavedAddresses]=useState([]);
   const [categories,setCategories]=useState([]);
-  const [dataLoaded,setDataLoaded]=useState(false);
+  // ── Per-collection loading flags (replace single dataLoaded boolean) ─────────
+  // invoicesLoaded gates the splash screen — clears the moment the first
+  // invoice snapshot fires (from cache or network). buildersLoaded and
+  // financeLoaded fill in progressively; the app is already visible by then.
+  const [invoicesLoaded, setInvoicesLoaded] = useState(false);
+  const [buildersLoaded, setBuildersLoaded] = useState(false);
+  const [financeLoaded, setFinanceLoaded] = useState(false);
+  // Set to true when a 10-second per-collection fallback fires (no data arrived)
+  const [invoicesError, setInvoicesError] = useState(false);
+  const [buildersError, setBuildersError] = useState(false);
+  const [financeError, setFinanceError] = useState(false);
 
-  const syncReady = useRef(false); // true after initial load; gates write-back useEffects
+  const syncReady = useRef(false); // true after background getDocs chain completes
 
   const [toast,setToast]=useState(null);
   const [duplicateFrom,setDuplicateFrom]=useState(null);
@@ -2585,100 +2595,151 @@ export default function App() {
   // ── Firestore bootstrap ──────────────────────────────────────────────────────
   useEffect(() => {
     let unsubInvoices, unsubPaid;
-    const loadingTimeout = setTimeout(() => setDataLoaded(true), 8000);
+    let invoiceFirstFired = false;
+    let paidFirstFired = false;
 
-    const init = async () => {
-      const buildersSnap = await getDocs(collection(db,"builders"));
+    // ── Per-collection 10-second fallbacks ──────────────────────────────────────
+    // If a collection's listener never fires (no network + empty cache),
+    // unblock that section after 10 seconds so the rest of the app still works.
+    const invoiceTimer = setTimeout(() => {
+      if (!invoiceFirstFired) { setInvoicesLoaded(true); setInvoicesError(true); }
+    }, 10000);
+    const buildersTimer = setTimeout(() => {
+      if (!syncReady.current) { setBuildersLoaded(true); setBuildersError(true); }
+    }, 10000);
+    const financeTimer = setTimeout(() => {
+      if (!paidFirstFired) { setFinanceLoaded(true); setFinanceError(true); }
+    }, 10000);
 
-      if (buildersSnap.empty) {
-        // ── First-ever launch: seed the database ──
-        const batch = writeBatch(db);
-        INIT_BUILDERS.forEach(b => batch.set(doc(db,"builders",b.id), b));
-        INIT_ACTIVE.forEach(inv => batch.set(doc(db,"invoices",String(inv.id)), serializeInvoice(inv)));
-        INIT_PAID.forEach(inv => batch.set(doc(db,"paid",String(inv.id)), inv));
-        INIT_BUILDERS.forEach(b => batch.set(doc(db,"floorPlans",b.id), {plans:[]}));
-        batch.set(doc(db,"prices","default"), Object.fromEntries(LINE_ITEM_PRESETS.map(p=>[p.desc,p.price])));
-        batch.set(doc(db,"workers","w1"), {id:"w1",name:"Worker 1"});
-        batch.set(doc(db,"workers","w2"), {id:"w2",name:"Worker 2"});
-        await batch.commit();
-
-        // Set local state directly (listeners will also fire shortly after)
-        setBuilders(INIT_BUILDERS);
-        setBuilderNums(Object.fromEntries(INIT_BUILDERS.map(b=>[b.id,b.lastNum])));
-        setFloorPlans(Object.fromEntries(INIT_BUILDERS.map(b=>[b.id,[]])));
-        setPrices(Object.fromEntries(LINE_ITEM_PRESETS.map(p=>[p.desc,p.price])));
-        setWorkers([{id:"w1",name:"Worker 1"},{id:"w2",name:"Worker 2"}]);
-      } else {
-        // ── Subsequent launch: load all data ──
-        const [fpSnap, priceDoc, workersSnap, paymentsSnap] = await Promise.all([
-          getDocs(collection(db,"floorPlans")),
-          getDoc(doc(db,"prices","default")),
-          getDocs(collection(db,"workers")),
-          getDocs(collection(db,"payments")),
-        ]);
-
-        const bList = buildersSnap.docs.map(d => d.data());
-        setBuilders(bList);
-        setBuilderNums(Object.fromEntries(bList.map(b=>[b.id,b.lastNum])));
-
-        const fp = {};
-        fpSnap.docs.forEach(d => { fp[d.id] = d.data().plans || []; });
-        setFloorPlans(fp);
-
-        if (priceDoc.exists()) setPrices(priceDoc.data());
-        if (!workersSnap.empty) setWorkers(workersSnap.docs.map(d => d.data()));
-        setPayments(paymentsSnap.docs.map(d => d.data()));
-      }
-
-      // ── Line item presets (all presets live in Firestore) ────────────────────
-      const presetsSnap = await getDocs(collection(db,"lineItemPresets"));
-      const hasBuiltIns = presetsSnap.docs.some(d => d.data().isBuiltIn);
-      if (!hasBuiltIns) {
-        const builtIns = LINE_ITEM_PRESETS.map((p,i)=>({
-          id:`bi_${i}`, desc:p.desc, item:p.item, unit:p.unit, price:p.price,
-          inputType:p.inputType, descTemplate:p.descTemplate, multiplyByUnits:p.multiplyByUnits,
-          priceInDescription:p.priceInDescription, categoryId:p.categoryId||"cat_other", isBuiltIn:true, order:i,
-        }));
-        const customDefaults = presetsSnap.empty ? [
-          {id:"cp_tile_2shower", desc:"Tile Over 2 Showers", item:"Tile", unit:"job", price:350, inputType:"quantity", descTemplate:"Tile over {qty} showers", multiplyByUnits:true, priceInDescription:false, categoryId:"cat_tile", isBuiltIn:false, order:11},
-          {id:"cp_tile_1shower", desc:"Tile Over 1 Shower",  item:"Tile", unit:"job", price:175, inputType:"quantity", descTemplate:"Tile over 1 shower",      multiplyByUnits:true, priceInDescription:false, categoryId:"cat_tile", isBuiltIn:false, order:12},
-        ] : [];
-        const toSeed = [...builtIns, ...customDefaults];
-        await Promise.all(toSeed.map(p => setDoc(doc(db,"lineItemPresets",p.id), p)));
-        const existing = presetsSnap.empty ? [] : presetsSnap.docs.map(d => ({id:d.id,...d.data()}));
-        setCustomPresets([...existing, ...toSeed]);
-      } else {
-        setCustomPresets(presetsSnap.docs.map(d => ({id:d.id,...d.data()})));
-      }
-
-      // ── Saved addresses ──────────────────────────────────────────────────────────
-      const addrSnap = await getDocs(collection(db,"savedAddresses"));
-      setSavedAddresses(addrSnap.docs.map(d => d.data()));
-
-      // ── Line item categories ─────────────────────────────────────────────────────
-      const catsSnap = await getDocs(collection(db,"lineItemCategories"));
-      if (catsSnap.empty) {
-        await Promise.all(DEFAULT_CATEGORIES.map(c => setDoc(doc(db,"lineItemCategories",c.id), c)));
-        setCategories(DEFAULT_CATEGORIES);
-      } else {
-        setCategories(catsSnap.docs.map(d => d.data()).sort((a,b)=>(a.order??99)-(b.order??99)));
-      }
-
-      // ── Real-time listeners for invoices + paid (cross-device sync) ──
-      unsubInvoices = onSnapshot(collection(db,"invoices"), snap => {
+    // ── Invoice listener — starts immediately, gates the splash screen ──────────
+    // With offline persistence the first callback fires from IndexedDB cache
+    // before any network round-trip. includeMetadataChanges lets us distinguish
+    // cache vs network in snap.metadata.fromCache if needed later.
+    unsubInvoices = onSnapshot(
+      collection(db, "invoices"),
+      { includeMetadataChanges: true },
+      snap => {
         setInvoices(snap.docs.map(d => d.data()));
-      });
-      unsubPaid = onSnapshot(collection(db,"paid"), snap => {
-        setPaid(snap.docs.map(d => d.data()));
-      });
+        if (!invoiceFirstFired) {
+          invoiceFirstFired = true;
+          clearTimeout(invoiceTimer);
+          setInvoicesLoaded(true);
+        }
+      }
+    );
 
-      syncReady.current = true;
-      clearTimeout(loadingTimeout);
-      setDataLoaded(true);
+    // ── Paid listener — starts immediately in background, no splash blocking ────
+    unsubPaid = onSnapshot(
+      collection(db, "paid"),
+      { includeMetadataChanges: true },
+      snap => {
+        setPaid(snap.docs.map(d => d.data()));
+        if (!paidFirstFired) {
+          paidFirstFired = true;
+          clearTimeout(financeTimer);
+          setFinanceLoaded(true);
+        }
+      }
+    );
+
+    // ── Background getDocs chain — builders, floor plans, prices, workers ────────
+    // Runs concurrently with the listeners above. Does not block the splash screen.
+    const loadBackground = async () => {
+      try {
+        const buildersSnap = await getDocs(collection(db,"builders"));
+
+        if (buildersSnap.empty) {
+          // ── First-ever launch: seed the database ──
+          const batch = writeBatch(db);
+          INIT_BUILDERS.forEach(b => batch.set(doc(db,"builders",b.id), b));
+          INIT_ACTIVE.forEach(inv => batch.set(doc(db,"invoices",String(inv.id)), serializeInvoice(inv)));
+          INIT_PAID.forEach(inv => batch.set(doc(db,"paid",String(inv.id)), inv));
+          INIT_BUILDERS.forEach(b => batch.set(doc(db,"floorPlans",b.id), {plans:[]}));
+          batch.set(doc(db,"prices","default"), Object.fromEntries(LINE_ITEM_PRESETS.map(p=>[p.desc,p.price])));
+          batch.set(doc(db,"workers","w1"), {id:"w1",name:"Worker 1"});
+          batch.set(doc(db,"workers","w2"), {id:"w2",name:"Worker 2"});
+          await batch.commit();
+
+          setBuilders(INIT_BUILDERS);
+          setBuilderNums(Object.fromEntries(INIT_BUILDERS.map(b=>[b.id,b.lastNum])));
+          setFloorPlans(Object.fromEntries(INIT_BUILDERS.map(b=>[b.id,[]])));
+          setPrices(Object.fromEntries(LINE_ITEM_PRESETS.map(p=>[p.desc,p.price])));
+          setWorkers([{id:"w1",name:"Worker 1"},{id:"w2",name:"Worker 2"}]);
+        } else {
+          // ── Subsequent launch: load static collections ──
+          const [fpSnap, priceDoc, workersSnap, paymentsSnap] = await Promise.all([
+            getDocs(collection(db,"floorPlans")),
+            getDoc(doc(db,"prices","default")),
+            getDocs(collection(db,"workers")),
+            getDocs(collection(db,"payments")),
+          ]);
+
+          const bList = buildersSnap.docs.map(d => d.data());
+          setBuilders(bList);
+          setBuilderNums(Object.fromEntries(bList.map(b=>[b.id,b.lastNum])));
+
+          const fp = {};
+          fpSnap.docs.forEach(d => { fp[d.id] = d.data().plans || []; });
+          setFloorPlans(fp);
+
+          if (priceDoc.exists()) setPrices(priceDoc.data());
+          if (!workersSnap.empty) setWorkers(workersSnap.docs.map(d => d.data()));
+          setPayments(paymentsSnap.docs.map(d => d.data()));
+        }
+
+        // ── Line item presets ─────────────────────────────────────────────────
+        const presetsSnap = await getDocs(collection(db,"lineItemPresets"));
+        const hasBuiltIns = presetsSnap.docs.some(d => d.data().isBuiltIn);
+        if (!hasBuiltIns) {
+          const builtIns = LINE_ITEM_PRESETS.map((p,i)=>({
+            id:`bi_${i}`, desc:p.desc, item:p.item, unit:p.unit, price:p.price,
+            inputType:p.inputType, descTemplate:p.descTemplate, multiplyByUnits:p.multiplyByUnits,
+            priceInDescription:p.priceInDescription, categoryId:p.categoryId||"cat_other", isBuiltIn:true, order:i,
+          }));
+          const customDefaults = presetsSnap.empty ? [
+            {id:"cp_tile_2shower", desc:"Tile Over 2 Showers", item:"Tile", unit:"job", price:350, inputType:"quantity", descTemplate:"Tile over {qty} showers", multiplyByUnits:true, priceInDescription:false, categoryId:"cat_tile", isBuiltIn:false, order:11},
+            {id:"cp_tile_1shower", desc:"Tile Over 1 Shower",  item:"Tile", unit:"job", price:175, inputType:"quantity", descTemplate:"Tile over 1 shower",      multiplyByUnits:true, priceInDescription:false, categoryId:"cat_tile", isBuiltIn:false, order:12},
+          ] : [];
+          const toSeed = [...builtIns, ...customDefaults];
+          await Promise.all(toSeed.map(p => setDoc(doc(db,"lineItemPresets",p.id), p)));
+          const existing = presetsSnap.empty ? [] : presetsSnap.docs.map(d => ({id:d.id,...d.data()}));
+          setCustomPresets([...existing, ...toSeed]);
+        } else {
+          setCustomPresets(presetsSnap.docs.map(d => ({id:d.id,...d.data()})));
+        }
+
+        // ── Saved addresses ───────────────────────────────────────────────────
+        const addrSnap = await getDocs(collection(db,"savedAddresses"));
+        setSavedAddresses(addrSnap.docs.map(d => d.data()));
+
+        // ── Line item categories ──────────────────────────────────────────────
+        const catsSnap = await getDocs(collection(db,"lineItemCategories"));
+        if (catsSnap.empty) {
+          await Promise.all(DEFAULT_CATEGORIES.map(c => setDoc(doc(db,"lineItemCategories",c.id), c)));
+          setCategories(DEFAULT_CATEGORIES);
+        } else {
+          setCategories(catsSnap.docs.map(d => d.data()).sort((a,b)=>(a.order??99)-(b.order??99)));
+        }
+
+        syncReady.current = true;
+        clearTimeout(buildersTimer);
+        setBuildersLoaded(true);
+      } catch (e) {
+        console.error("Background data load failed:", e);
+        clearTimeout(buildersTimer);
+        setBuildersLoaded(true);
+        setBuildersError(true);
+      }
     };
 
-    init();
-    return () => { unsubInvoices?.(); unsubPaid?.(); clearTimeout(loadingTimeout); };
+    loadBackground();
+    return () => {
+      unsubInvoices?.();
+      unsubPaid?.();
+      clearTimeout(invoiceTimer);
+      clearTimeout(buildersTimer);
+      clearTimeout(financeTimer);
+    };
   }, []);
 
   // ── Write-back watchers for Settings-managed collections ────────────────────
@@ -2930,13 +2991,15 @@ export default function App() {
 
   if(!unlocked) return <LockScreen onUnlock={()=>setUnlocked(true)}/>;
 
-  if(!dataLoaded) return (
+  // Splash clears the moment the invoice listener fires its first callback
+  // (from IndexedDB cache or network). Everything else loads progressively.
+  if(!invoicesLoaded) return (
     <div style={{minHeight:"100vh",background:"#0a0c12",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',sans-serif"}}>
       <style>{`@keyframes jcr-spin{to{transform:rotate(360deg)}}`}</style>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
       <div style={{width:44,height:44,border:"3px solid #1c2035",borderTopColor:"#f0b429",borderRadius:"50%",animation:"jcr-spin 0.8s linear infinite",marginBottom:24}}/>
       <div style={{fontSize:11,fontWeight:700,color:"#f0b429",letterSpacing:"0.18em"}}>JCR FLOORING LLC</div>
-      <div style={{fontSize:13,color:"#4a5170",marginTop:6}}>Syncing data...</div>
+      <div style={{fontSize:13,color:"#4a5170",marginTop:6}}>{invoicesError ? "Could not reach server — retrying…" : "Loading..."}</div>
     </div>
   );
 
