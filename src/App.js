@@ -2585,6 +2585,7 @@ export default function App() {
   // ── Firestore bootstrap ──────────────────────────────────────────────────────
   useEffect(() => {
     let unsubInvoices, unsubPaid;
+    const loadingTimeout = setTimeout(() => setDataLoaded(true), 8000);
 
     const init = async () => {
       const buildersSnap = await getDocs(collection(db,"builders"));
@@ -2672,11 +2673,12 @@ export default function App() {
       });
 
       syncReady.current = true;
+      clearTimeout(loadingTimeout);
       setDataLoaded(true);
     };
 
     init();
-    return () => { unsubInvoices?.(); unsubPaid?.(); };
+    return () => { unsubInvoices?.(); unsubPaid?.(); clearTimeout(loadingTimeout); };
   }, []);
 
   // ── Write-back watchers for Settings-managed collections ────────────────────
