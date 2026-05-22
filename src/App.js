@@ -525,6 +525,9 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
   const [bundle,setBundle]=useState([]); // [{invoice, builder, builderId, num, formState}]
   const [confirm,setConfirm]=useState(false);
   const [sending,setSending]=useState(false);
+  const [pdfUrls,setPdfUrls]=useState({});
+  const [pdfErrorIds,setPdfErrorIds]=useState(new Set());
+  const pdfObjUrls=useRef([]);
 
   const builder=builders.find(b=>b.id===bId);
   const plans=(bId&&floorPlans[bId])||[];
@@ -606,6 +609,52 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
     setStep(1);
   };
 
+  // Fetch real PDF previews whenever step 4 is active
+  useEffect(()=>{
+    if(step!==4||bundle.length===0){
+      pdfObjUrls.current.forEach(u=>URL.revokeObjectURL(u));
+      pdfObjUrls.current=[];
+      setPdfUrls({});
+      setPdfErrorIds(new Set());
+      return;
+    }
+    pdfObjUrls.current.forEach(u=>URL.revokeObjectURL(u));
+    pdfObjUrls.current=[];
+    setPdfUrls({});
+    setPdfErrorIds(new Set());
+    let cancelled=false;
+    bundle.forEach(async(item)=>{
+      const inv=item.invoice;
+      const bld=item.builder;
+      const payload={
+        invoiceNum:    inv.invoiceNum,
+        date:          inv.date||inv.dateInvoiced||'',
+        address:       inv.address||'',
+        city:          inv.city||'',
+        jobType:       inv.jobType||'duplex',
+        amount:        inv.amount,
+        lineItems:     inv.lineItems||[],
+        notes:         inv.notes||'',
+        builderName:   bld.name,
+        builderCompany:bld.company,
+        builderEmail:  bld.email,
+      };
+      try{
+        const r=await fetch('/api/preview-invoice',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        if(!r.ok)throw new Error('preview failed');
+        const blob=await r.blob();
+        if(!cancelled){
+          const url=URL.createObjectURL(blob);
+          pdfObjUrls.current.push(url);
+          setPdfUrls(prev=>({...prev,[inv.id]:url}));
+        }
+      }catch{
+        if(!cancelled)setPdfErrorIds(prev=>new Set([...prev,inv.id]));
+      }
+    });
+    return()=>{cancelled=true;};
+  },[step,bundle]);// eslint-disable-line react-hooks/exhaustive-deps
+
   // STEP 4 — Bundle Preview
   if(step===4&&bundle.length>0){
     const mainBuilder=bundle[0].builder;
@@ -658,7 +707,17 @@ function CreateScreen({builders,setScreen,builderNums,floorPlans,prices,toast,du
         <div style={{padding:"0 16px"}}>
           {bundle.map((item,idx)=>(
             <div key={item.invoice.id} style={{position:"relative",marginBottom:12}}>
-              <InvoiceCard inv={item.invoice} builder={item.builder}/>
+              {pdfUrls[item.invoice.id]?(
+                <iframe
+                  src={pdfUrls[item.invoice.id]}
+                  title={`Invoice ${item.invoice.invoiceNum}`}
+                  style={{width:"100%",aspectRatio:"8.5/11",border:"none",borderRadius:8,display:"block"}}
+                />
+              ):pdfErrorIds.has(item.invoice.id)?(
+                <InvoiceCard inv={item.invoice} builder={item.builder}/>
+              ):(
+                <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:8,padding:"40px 0",textAlign:"center",color:"#64748b",fontSize:13}}>Loading preview…</div>
+              )}
               {bundle.length>1&&(
                 <button onClick={()=>setBundle(prev=>prev.filter((_,i)=>i!==idx))} style={{position:"absolute",top:8,right:8,background:"#ef444418",border:"1px solid #ef444430",color:"#ef4444",borderRadius:8,fontSize:11,fontWeight:600,padding:"3px 10px",cursor:"pointer"}}>Remove</button>
               )}
